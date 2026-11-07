@@ -15,8 +15,8 @@ enum NotificationService {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [restID])
         let content = UNMutableNotificationContent()
-        content.title = "Rest is over"
-        content.body = "Time for your next set."
+        content.title = tr("Rest is over")
+        content.body = tr("Time for your next set.")
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
         center.add(UNNotificationRequest(identifier: restID, content: content, trigger: trigger))
@@ -30,8 +30,8 @@ enum NotificationService {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [reminderID])
         let content = UNMutableNotificationContent()
-        content.title = "Time to train"
-        content.body = "Your next workout is waiting."
+        content.title = tr("Time to train")
+        content.body = tr("Your next workout is waiting.")
         content.sound = .default
         var comps = DateComponents()
         comps.hour = hour

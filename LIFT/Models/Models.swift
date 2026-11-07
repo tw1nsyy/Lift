@@ -7,6 +7,7 @@ import SwiftUI
 enum MuscleGroup: String, CaseIterable, Identifiable, Codable {
     case chest = "Chest", back = "Back", shoulders = "Shoulders", arms = "Arms", legs = "Legs", core = "Core"
     var id: String { rawValue }
+    var title: String { tr(rawValue) }
     var symbol: String {
         switch self {
         case .chest: "figure.strengthtraining.traditional"
@@ -22,11 +23,13 @@ enum MuscleGroup: String, CaseIterable, Identifiable, Codable {
 enum Equipment: String, CaseIterable, Identifiable, Codable {
     case barbell = "Barbell", dumbbell = "Dumbbell", machine = "Machine", cable = "Cable", bodyweight = "Bodyweight"
     var id: String { rawValue }
+    var title: String { tr(rawValue) }
 }
 
 enum ThemeMode: String, CaseIterable, Identifiable {
     case dark = "Dark", light = "Light", system = "System"
     var id: String { rawValue }
+    var title: String { tr(rawValue) }
     var colorScheme: ColorScheme? {
         switch self {
         case .dark: ColorScheme.dark
@@ -42,6 +45,7 @@ enum RecordType: String, CaseIterable, Identifiable {
     case maxReps = "Most Reps"
     case sessionVolume = "Session Volume"
     var id: String { rawValue }
+    var title: String { tr(rawValue) }
     var icon: String {
         switch self {
         case .maxWeight: "scalemass.fill"
@@ -52,7 +56,7 @@ enum RecordType: String, CaseIterable, Identifiable {
     }
     func formatted(_ value: Double, unit: WeightUnit) -> String {
         switch self {
-        case .maxReps: return "\(Int(value)) reps"
+        case .maxReps: return trf("%d reps", Int(value))
         case .sessionVolume: return "\(unit.formatVolume(value)) \(unit.label)"
         default: return unit.format(value)
         }
@@ -62,13 +66,14 @@ enum RecordType: String, CaseIterable, Identifiable {
 enum ChartMetric: String, CaseIterable, Identifiable {
     case oneRM = "1RM", maxWeight = "Max Weight", volume = "Volume", reps = "Reps"
     var id: String { rawValue }
+    var label: String { tr(rawValue) }
     var isWeightBased: Bool { self != .reps }
     var title: String {
         switch self {
-        case .oneRM: "Estimated 1RM"
-        case .maxWeight: "Max working weight"
-        case .volume: "Volume per session"
-        case .reps: "Max reps in a set"
+        case .oneRM: tr("Estimated 1RM")
+        case .maxWeight: tr("Max working weight")
+        case .volume: tr("Volume per session")
+        case .reps: tr("Max reps in a set")
         }
     }
 }
@@ -94,6 +99,7 @@ final class UserProfile {
     var didOnboard: Bool = false
     /// Weight added when the app suggests a progression (kg).
     var progressionStepKg: Double = 2.0
+    var seededUpperProgram: Bool = false
 
     init(name: String = "") {
         self.name = name
@@ -191,6 +197,10 @@ final class WorkoutExercise {
     var exerciseName: String
     var exercise: Exercise?
     var workout: Workout?
+    /// Target rep range copied from a program (0 = none) and its rest time in seconds (0 = app default).
+    var repsMin: Int = 0
+    var repsMax: Int = 0
+    var restSeconds: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \WorkoutSet.workoutExercise)
     var sets: [WorkoutSet] = []
@@ -287,6 +297,8 @@ final class TemplateItem {
     var sets: Int
     var reps: Int
     var weightKg: Double
+    var repsMax: Int = 0
+    var restSeconds: Int = 0
     var exercise: Exercise?
     var template: WorkoutTemplate?
 

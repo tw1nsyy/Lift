@@ -28,7 +28,7 @@ struct RestTimerBar: View {
                 .frame(width: 38, height: 38)
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(timer.status == .paused ? "Rest · paused" : "Rest")
+                    Text(timer.status == .paused ? tr("Rest · paused") : tr("Rest"))
                         .font(.lift(11, .semibold)).foregroundStyle(Theme.textSecondary)
                     Text(countdownString(timer.remaining))
                         .font(.lift(24, .bold)).monospacedDigit().foregroundStyle(Theme.textPrimary)
@@ -43,7 +43,7 @@ struct RestTimerBar: View {
                     .frame(width: 22, height: 22)
             }
             .buttonStyle(SoftButtonStyle())
-            Button("Skip") { timer.skip() }
+            Button(tr("Skip")) { timer.skip() }
                 .buttonStyle(SoftButtonStyle())
         }
         .padding(12)
@@ -65,14 +65,14 @@ struct RestTimerSheet: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("Rest timer").font(.lift(18, .bold)).padding(.top, 20)
+            Text(tr("Rest timer")).font(.lift(18, .bold)).padding(.top, 20)
 
             ZStack {
                 RestRing(progress: timer.isActive ? timer.progress : 1, lineWidth: 14)
                 VStack(spacing: 4) {
                     Text(countdownString(timer.isActive ? timer.remaining : Double(selected)))
                         .font(.lift(58, .bold)).monospacedDigit()
-                    Text(timer.status == .paused ? "Paused" : (timer.isActive ? "Resting" : "Ready"))
+                    Text(timer.status == .paused ? tr("Paused") : (timer.isActive ? tr("Resting") : tr("Ready")))
                         .font(.lift(14, .semibold)).foregroundStyle(Theme.textSecondary)
                 }
             }
@@ -85,7 +85,7 @@ struct RestTimerSheet: View {
                         profile?.defaultRestSeconds = s
                         if timer.isActive { timer.start(seconds: s) }
                     } label: {
-                        Text(s >= 60 ? "\(s / 60):\(String(format: "%02d", s % 60))" : "\(s)s")
+                        Text(s >= 60 ? "\(s / 60):\(String(format: "%02d", s % 60))" : trf("%ds", s))
                             .font(.lift(14, .bold))
                             .foregroundStyle(selected == s ? Theme.background : Theme.textPrimary)
                             .padding(.horizontal, 12).padding(.vertical, 9)
@@ -100,19 +100,19 @@ struct RestTimerSheet: View {
                     Button {
                         timer.status == .paused ? timer.resume() : timer.pause()
                     } label: {
-                        Label(timer.status == .paused ? "Resume" : "Pause",
+                        Label(timer.status == .paused ? tr("Resume") : tr("Pause"),
                               systemImage: timer.status == .paused ? "play.fill" : "pause.fill")
                     }
                     .buttonStyle(SoftButtonStyle())
-                    Button { timer.add(seconds: 30) } label: { Text("+30s") }
+                    Button { timer.add(seconds: 30) } label: { Text(tr("+30s")) }
                         .buttonStyle(SoftButtonStyle())
-                    Button { timer.skip() } label: { Label("Skip", systemImage: "forward.end.fill") }
+                    Button { timer.skip() } label: { Label(tr("Skip"), systemImage: "forward.end.fill") }
                         .buttonStyle(SoftButtonStyle())
                 } else {
                     Button {
                         applySettings()
                         timer.start(seconds: selected)
-                    } label: { Label("Start rest", systemImage: "play.fill") }
+                    } label: { Label(tr("Start rest"), systemImage: "play.fill") }
                         .buttonStyle(PrimaryButtonStyle())
                 }
             }

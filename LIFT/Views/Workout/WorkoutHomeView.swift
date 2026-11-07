@@ -18,7 +18,7 @@ struct WorkoutHomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    Text("Workout")
+                    Text(tr("Workout"))
                         .font(.lift(30, .bold))
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -32,20 +32,21 @@ struct WorkoutHomeView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .screenBackground()
+            .tabBarClearance()
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $editingTemplate) { t in
                 TemplateEditorView(template: t, isNew: editingIsNew)
             }
-            .confirmationDialog("Delete program?", isPresented: Binding(get: { templateToDelete != nil },
+            .confirmationDialog(tr("Delete program?"), isPresented: Binding(get: { templateToDelete != nil },
                                                                        set: { if !$0 { templateToDelete = nil } }),
                                 titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
+                Button(tr("Delete"), role: .destructive) {
                     if let t = templateToDelete { context.delete(t); try? context.save() }
                     templateToDelete = nil
                 }
-                Button("Cancel", role: .cancel) { templateToDelete = nil }
+                Button(tr("Cancel"), role: .cancel) { templateToDelete = nil }
             } message: {
-                Text("Past workouts are not affected.")
+                Text(tr("Past workouts are not affected."))
             }
         }
     }
@@ -57,16 +58,16 @@ struct WorkoutHomeView: View {
             if let a = active.first {
                 HStack {
                     Image(systemName: "bolt.heart.fill").foregroundStyle(Theme.accent)
-                    Text("Workout in progress").font(.lift(17, .bold))
+                    Text(tr("Workout in progress")).font(.lift(17, .bold))
                 }
-                Text("\(a.name) · \(a.completedSets.count) sets done")
+                Text("\(tr(a.name)) · \(trf("%d sets done", a.completedSets.count))")
                     .font(.lift(13, .medium)).foregroundStyle(Theme.textSecondary)
                 Button {
                     router.presentedWorkout = a
-                } label: { Label("Resume Workout", systemImage: "arrow.right") }
+                } label: { Label(tr("Resume Workout"), systemImage: "arrow.right") }
                     .buttonStyle(PrimaryButtonStyle())
             } else {
-                Text("New workout").font(.lift(17, .bold))
+                Text(tr("New workout")).font(.lift(17, .bold))
                 TextField(WorkoutService.defaultName(), text: $workoutName)
                     .font(.lift(16, .semibold))
                     .padding(12)
@@ -76,7 +77,7 @@ struct WorkoutHomeView: View {
                     let name = workoutName.trimmingCharacters(in: .whitespaces)
                     WorkoutService.begin(name: name.isEmpty ? nil : name, context: context, router: router)
                     workoutName = ""
-                } label: { Label("Start Empty Workout", systemImage: "play.fill") }
+                } label: { Label(tr("Start Empty Workout"), systemImage: "play.fill") }
                     .buttonStyle(PrimaryButtonStyle())
             }
         }
@@ -86,7 +87,7 @@ struct WorkoutHomeView: View {
     private var quickActions: some View {
         HStack(spacing: 12) {
             NavigationLink { ExerciseLibraryView() } label: {
-                quickTile(icon: "books.vertical.fill", title: "Exercise Library")
+                quickTile(icon: "books.vertical.fill", title: tr("Exercise Library"))
             }
             .buttonStyle(.plain)
 
@@ -95,7 +96,7 @@ struct WorkoutHomeView: View {
                     WorkoutService.repeatWorkout(last, context: context, router: router)
                 }
             } label: {
-                quickTile(icon: "arrow.counterclockwise", title: "Repeat Last")
+                quickTile(icon: "arrow.counterclockwise", title: tr("Repeat Last"))
             }
             .buttonStyle(.plain)
             .disabled(workouts.isEmpty)
@@ -116,19 +117,19 @@ struct WorkoutHomeView: View {
     private var templatesSection: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Programs").font(.lift(20, .bold))
+                Text(tr("Programs")).font(.lift(20, .bold))
                 Spacer()
                 Button {
                     let t = WorkoutTemplate(name: "")
                     context.insert(t)
                     editingIsNew = true
                     editingTemplate = t
-                } label: { Label("New", systemImage: "plus") }
+                } label: { Label(tr("New"), systemImage: "plus") }
                     .buttonStyle(SoftButtonStyle())
             }
             if templates.isEmpty {
-                EmptyStateView(icon: "list.bullet.rectangle", title: "No programs yet",
-                               message: "Save your favourite routines as programs and start them in one tap.")
+                EmptyStateView(icon: "list.bullet.rectangle", title: tr("No programs yet"),
+                               message: tr("Save your favourite routines as programs and start them in one tap."))
                     .card()
             }
             ForEach(templates) { t in
@@ -138,18 +139,18 @@ struct WorkoutHomeView: View {
     }
 
     private func templateCard(_ t: WorkoutTemplate) -> some View {
-        let names = t.sortedItems.compactMap { $0.exercise?.name }
+        let names = t.sortedItems.compactMap { $0.exercise.map { tr($0.name) } }
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(t.name).font(.lift(18, .bold))
-                    Text("\(names.count) exercises · \(t.totalSets) sets")
+                    Text(tr(t.name)).font(.lift(18, .bold))
+                    Text("\(countText(names.count, .exercise)) · \(countText(t.totalSets, .set))")
                         .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
                 Menu {
-                    Button { editingIsNew = false; editingTemplate = t } label: { Label("Edit", systemImage: "pencil") }
-                    Button(role: .destructive) { templateToDelete = t } label: { Label("Delete", systemImage: "trash") }
+                    Button { editingIsNew = false; editingTemplate = t } label: { Label(tr("Edit"), systemImage: "pencil") }
+                    Button(role: .destructive) { templateToDelete = t } label: { Label(tr("Delete"), systemImage: "trash") }
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(width: 32, height: 32)
@@ -160,7 +161,7 @@ struct WorkoutHomeView: View {
             Text(names.joined(separator: " · "))
                 .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary).lineLimit(2)
             if t.weekdayMask != 0 {
-                let days = (1...7).filter { t.isPlanned(weekday: $0) }.map { Calendar.current.shortWeekdaySymbols[$0 - 1] }
+                let days = (1...7).filter { t.isPlanned(weekday: $0) }.map { Lang.calendar.shortWeekdaySymbols[$0 - 1] }
                 Label(days.joined(separator: ", "), systemImage: "calendar")
                     .font(.lift(12, .semibold)).foregroundStyle(Theme.accent)
             }
@@ -168,7 +169,7 @@ struct WorkoutHomeView: View {
                 Haptics.tap()
                 WorkoutService.begin(template: t, context: context, router: router)
             } label: {
-                Label(active.isEmpty ? "Start" : "Finish current workout first", systemImage: "play.fill")
+                Label(active.isEmpty ? tr("Start") : tr("Finish current workout first"), systemImage: "play.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SoftButtonStyle())
@@ -192,26 +193,26 @@ struct TemplateEditorView: View {
     @State private var snapshot: Snapshot?
 
     private struct Snapshot {
-        struct Item { let exercise: Exercise?; let sets: Int; let reps: Int; let weightKg: Double }
+        struct Item { let exercise: Exercise?; let sets: Int; let reps: Int; let weightKg: Double; let repsMax: Int; let restSeconds: Int }
         let name: String
         let mask: Int
         let items: [Item]
     }
 
     private var orderedWeekdays: [Int] {
-        (0..<7).map { (Calendar.current.firstWeekday - 1 + $0) % 7 + 1 }
+        (0..<7).map { (Lang.calendar.firstWeekday - 1 + $0) % 7 + 1 }
     }
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Name") {
-                    TextField("Program name", text: $template.name)
+                Section(tr("Name")) {
+                    TextField(tr("Program name"), text: $template.name)
                         .font(.lift(17, .semibold))
                 }
                 .listRowBackground(Theme.card)
 
-                Section("Plan days") {
+                Section(tr("Plan days")) {
                     HStack(spacing: 6) {
                         ForEach(orderedWeekdays, id: \.self) { d in
                             let on = template.isPlanned(weekday: d)
@@ -219,7 +220,7 @@ struct TemplateEditorView: View {
                                 Haptics.tap()
                                 template.setPlanned(weekday: d, !on)
                             } label: {
-                                Text(Calendar.current.shortWeekdaySymbols[d - 1].prefix(2))
+                                Text(Lang.calendar.shortWeekdaySymbols[d - 1].prefix(2))
                                     .font(.lift(12, .bold))
                                     .foregroundStyle(on ? Theme.background : Theme.textPrimary)
                                     .frame(maxWidth: .infinity)
@@ -229,20 +230,27 @@ struct TemplateEditorView: View {
                             .buttonStyle(.borderless)
                         }
                     }
-                    Text("Planned programs are suggested on the Today screen.")
+                    Text(tr("Planned programs are suggested on the Today screen."))
                         .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
                 }
                 .listRowBackground(Theme.card)
 
-                Section("Exercises") {
+                Section(tr("Exercises")) {
                     ForEach(template.sortedItems) { item in
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(item.exercise?.name ?? "Removed exercise").font(.lift(16, .bold))
+                            Text(item.exercise.map { tr($0.name) } ?? tr("Removed exercise")).font(.lift(16, .bold))
                             Stepper(value: Binding(get: { item.sets }, set: { item.sets = $0 }), in: 1...10) {
-                                Text("Sets: \(item.sets)").font(.lift(14, .medium))
+                                Text(trf("Sets: %d", item.sets)).font(.lift(14, .medium))
                             }
                             Stepper(value: Binding(get: { item.reps }, set: { item.reps = $0 }), in: 1...50) {
-                                Text("Reps: \(item.reps)").font(.lift(14, .medium))
+                                Text(trf("Reps: %d", item.reps)).font(.lift(14, .medium))
+                            }
+                            Stepper(value: Binding(get: { item.repsMax }, set: { item.repsMax = $0 }), in: 0...50) {
+                                Text(item.repsMax == 0 ? tr("Max reps: —") : trf("Max reps: %d", item.repsMax)).font(.lift(14, .medium))
+                            }
+                            Stepper(value: Binding(get: { item.restSeconds }, set: { item.restSeconds = $0 }), in: 0...300, step: 15) {
+                                Text(item.restSeconds == 0 ? tr("Rest: default") : trf("Rest: %@", countdownString(Double(item.restSeconds))))
+                                    .font(.lift(14, .medium))
                             }
                         }
                         .padding(.vertical, 4)
@@ -261,20 +269,20 @@ struct TemplateEditorView: View {
                         for (i, it) in items.enumerated() { it.order = i }
                     }
 
-                    Button { showPicker = true } label: { Label("Add Exercise", systemImage: "plus") }
+                    Button { showPicker = true } label: { Label(tr("Add Exercise"), systemImage: "plus") }
                 }
                 .listRowBackground(Theme.card)
             }
             .scrollContentBackground(.hidden)
             .screenBackground()
-            .navigationTitle(isNew ? "New Program" : "Edit Program")
+            .navigationTitle(isNew ? tr("New Program") : tr("Edit Program"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { cancel() }
+                    Button(tr("Cancel")) { cancel() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Save") { save() }.fontWeight(.bold)
+                    Button(tr("Save")) { save() }.fontWeight(.bold)
                 }
                 ToolbarItem(placement: .bottomBar) { EditButton() }
             }
@@ -294,7 +302,8 @@ struct TemplateEditorView: View {
                 if snapshot == nil {
                     snapshot = Snapshot(name: template.name, mask: template.weekdayMask,
                                         items: template.sortedItems.map {
-                                            .init(exercise: $0.exercise, sets: $0.sets, reps: $0.reps, weightKg: $0.weightKg)
+                                            .init(exercise: $0.exercise, sets: $0.sets, reps: $0.reps, weightKg: $0.weightKg,
+                                                    repsMax: $0.repsMax, restSeconds: $0.restSeconds)
                                         })
                 }
             }
@@ -302,7 +311,7 @@ struct TemplateEditorView: View {
     }
 
     private func save() {
-        if template.name.trimmingCharacters(in: .whitespaces).isEmpty { template.name = "My Program" }
+        if template.name.trimmingCharacters(in: .whitespaces).isEmpty { template.name = tr("My Program") }
         try? context.save()
         saved = true
         dismiss()
@@ -320,6 +329,8 @@ struct TemplateEditorView: View {
             for (i, item) in snap.items.enumerated() {
                 guard let ex = item.exercise else { continue }
                 let restored = TemplateItem(order: i, exercise: ex, sets: item.sets, reps: item.reps, weightKg: item.weightKg)
+                restored.repsMax = item.repsMax
+                restored.restSeconds = item.restSeconds
                 context.insert(restored)
                 restored.template = template
             }

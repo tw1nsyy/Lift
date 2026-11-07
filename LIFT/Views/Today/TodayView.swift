@@ -16,7 +16,7 @@ struct TodayView: View {
     @State private var displayedMonth = Date()
     @State private var selectedDay: Date?
 
-    private let calendar = Calendar.current
+    private var calendar: Calendar { Lang.calendar }
     private var profile: UserProfile? { profiles.first }
 
     var body: some View {
@@ -38,6 +38,7 @@ struct TodayView: View {
                 .padding(.bottom, 24)
             }
             .screenBackground()
+            .tabBarClearance()
             .toolbar(.hidden, for: .navigationBar)
         }
     }
@@ -46,14 +47,14 @@ struct TodayView: View {
 
     private var greeting: String {
         let h = calendar.component(.hour, from: Date())
-        let part = h < 12 ? "Good morning" : (h < 18 ? "Good afternoon" : "Good evening")
+        let part = h < 12 ? tr("Good morning") : (h < 18 ? tr("Good afternoon") : tr("Good evening"))
         let name = (profile?.name ?? "").trimmingCharacters(in: .whitespaces)
         return name.isEmpty ? part : "\(part), \(name)"
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
+            Text(Date().f(.dateTime.weekday(.wide).month(.wide).day()))
                 .font(.lift(13, .semibold))
                 .textCase(.uppercase)
                 .foregroundStyle(Theme.textSecondary)
@@ -67,7 +68,7 @@ struct TodayView: View {
             Haptics.tap()
             WorkoutService.begin(context: context, router: router)
         } label: {
-            Label(active.isEmpty ? "Start Workout" : "Resume Workout",
+            Label(active.isEmpty ? tr("Start Workout") : tr("Resume Workout"),
                   systemImage: active.isEmpty ? "play.fill" : "arrow.right")
         }
         .buttonStyle(PrimaryButtonStyle())
@@ -87,22 +88,22 @@ struct TodayView: View {
     private var planCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("Today's plan", systemImage: "calendar.badge.clock").font(.lift(17, .bold))
+                Label(tr("Today's plan"), systemImage: "calendar.badge.clock").font(.lift(17, .bold))
                 Spacer()
                 if doneToday {
-                    Label("Done", systemImage: "checkmark.circle.fill")
+                    Label(tr("Done"), systemImage: "checkmark.circle.fill")
                         .font(.lift(12, .bold)).foregroundStyle(Theme.accent)
                 }
             }
             ForEach(plannedToday) { t in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(t.name).font(.lift(15, .semibold))
-                        Text("\(t.items.count) exercises · \(t.totalSets) sets")
+                        Text(tr(t.name)).font(.lift(15, .semibold))
+                        Text("\(countText(t.items.count, .exercise)) · \(countText(t.totalSets, .set))")
                             .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
                     }
                     Spacer()
-                    Button("Start") {
+                    Button(tr("Start")) {
                         WorkoutService.begin(template: t, context: context, router: router)
                     }
                     .buttonStyle(SoftButtonStyle())
@@ -120,17 +121,17 @@ struct TodayView: View {
         let total = data.reduce(0) { $0 + $1.volumeKg }
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Volume by muscle").font(.lift(20, .bold))
+                Text(tr("Volume by muscle")).font(.lift(20, .bold))
                 Spacer()
-                Text("7 days").font(.lift(12, .semibold)).foregroundStyle(Theme.textSecondary)
+                Text(tr("7 days")).font(.lift(12, .semibold)).foregroundStyle(Theme.textSecondary)
             }
             if total <= 0 {
-                Text("Finish a workout to see how your volume is split between muscle groups.")
+                Text(tr("Finish a workout to see how your volume is split between muscle groups."))
                     .font(.lift(13, .medium)).foregroundStyle(Theme.textSecondary)
             } else {
                 Chart(data, id: \.muscle) { item in
                     BarMark(x: .value("Volume", unit.display(item.volumeKg)),
-                            y: .value("Muscle", item.muscle.rawValue))
+                            y: .value("Muscle", item.muscle.title))
                         .foregroundStyle(Theme.accent)
                         .cornerRadius(6)
                         .annotation(position: .trailing) {
@@ -153,10 +154,10 @@ struct TodayView: View {
     private var demoBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "sparkles").foregroundStyle(Theme.accent)
-            Text("You're seeing demo data. It disappears automatically when you finish your first workout.")
+            Text(tr("You're seeing demo data. It disappears automatically when you finish your first workout."))
                 .font(.lift(12, .medium))
                 .foregroundStyle(Theme.textSecondary)
-            Button("Remove") {
+            Button(tr("Remove")) {
                 withAnimation { WorkoutService.deleteDemoData(context: context) }
             }
             .buttonStyle(SoftButtonStyle())
@@ -179,11 +180,11 @@ struct TodayView: View {
     private var statGrid: some View {
         let totalVolume = workouts.reduce(0) { $0 + $1.totalVolumeKg }
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-            StatTile(title: "This week", value: "\(weekCount)", unit: "/ \(profile?.weeklyGoal ?? 3)", icon: "flame.fill",
+            StatTile(title: tr("This week"), value: "\(weekCount)", unit: "/ \(profile?.weeklyGoal ?? 3)", icon: "flame.fill",
                      tint: weekCount >= (profile?.weeklyGoal ?? 3) ? Theme.accent : Theme.textPrimary)
-            StatTile(title: "Workouts", value: "\(workouts.count)", icon: "checkmark.circle.fill")
-            StatTile(title: "Total volume", value: unit.formatVolume(totalVolume), unit: unit.label, icon: "scalemass.fill")
-            StatTile(title: "New PRs · 30 days", value: "\(recentPRCount)", icon: "trophy.fill",
+            StatTile(title: tr("Workouts"), value: "\(workouts.count)", icon: "checkmark.circle.fill")
+            StatTile(title: tr("Total volume"), value: unit.formatVolume(totalVolume), unit: unit.label, icon: "scalemass.fill")
+            StatTile(title: tr("New PRs · 30 days"), value: "\(recentPRCount)", icon: "trophy.fill",
                      tint: recentPRCount > 0 ? Theme.accent : Theme.textPrimary)
         }
     }
@@ -214,7 +215,7 @@ struct TodayView: View {
     private var calendarCard: some View {
         VStack(spacing: 12) {
             HStack {
-                Text(displayedMonth.formatted(.dateTime.month(.wide).year())).font(.lift(17, .bold))
+                Text(displayedMonth.f(.dateTime.month(.wide).year())).font(.lift(17, .bold))
                 Spacer()
                 Button { shiftMonth(-1) } label: { Image(systemName: "chevron.left") }
                     .buttonStyle(SoftButtonStyle())
@@ -235,15 +236,15 @@ struct TodayView: View {
                 let items = workoutsOn(sel)
                 Divider().overlay(Theme.hairline)
                 if items.isEmpty {
-                    Text("No workouts on \(sel.formatted(.dateTime.month(.abbreviated).day()))")
+                    Text(trf("No workouts on %@", sel.f(.dateTime.month(.abbreviated).day())))
                         .font(.lift(13, .medium)).foregroundStyle(Theme.textSecondary)
                 } else {
                     ForEach(items) { w in
                         NavigationLink { WorkoutDetailView(workout: w) } label: {
                             HStack {
-                                Text(w.name).font(.lift(15, .semibold))
+                                Text(tr(w.name)).font(.lift(15, .semibold))
                                 Spacer()
-                                Text("\(w.completedSets.count) sets · \(unit.formatVolume(w.totalVolumeKg)) \(unit.label)")
+                                Text("\(countText(w.completedSets.count, .set)) · \(unit.formatVolume(w.totalVolumeKg)) \(unit.label)")
                                     .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
                                 Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.textSecondary)
                             }
@@ -291,30 +292,30 @@ struct TodayView: View {
 
     private var lastWorkoutCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Last workout").font(.lift(20, .bold))
+            Text(tr("Last workout")).font(.lift(20, .bold))
             if let w = workouts.first {
                 NavigationLink { WorkoutDetailView(workout: w) } label: {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text(w.name).font(.lift(17, .bold))
+                            Text(tr(w.name)).font(.lift(17, .bold))
                             Spacer()
-                            Text(w.startedAt.formatted(.relative(presentation: .named)))
+                            Text(relativeString(w.startedAt))
                                 .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
                         }
                         HStack(spacing: 16) {
-                            miniStat("\(w.completedSets.count)", "sets")
+                            miniStat("\(w.completedSets.count)", tr("sets"))
                             miniStat(unit.formatVolume(w.totalVolumeKg), unit.label)
-                            miniStat(durationString(w.duration), "time")
+                            miniStat(durationString(w.duration), tr("time"))
                         }
-                        Text(w.sortedExercises.map { $0.exercise?.name ?? $0.exerciseName }.joined(separator: " · "))
+                        Text(w.sortedExercises.map { tr($0.exercise?.name ?? $0.exerciseName) }.joined(separator: " · "))
                             .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary).lineLimit(2)
                     }
                     .foregroundStyle(Theme.textPrimary)
                 }
                 .buttonStyle(.plain)
             } else {
-                EmptyStateView(icon: "figure.strengthtraining.traditional", title: "No workouts yet",
-                               message: "Finish your first workout and it will show up here.")
+                EmptyStateView(icon: "figure.strengthtraining.traditional", title: tr("No workouts yet"),
+                               message: tr("Finish your first workout and it will show up here."))
             }
         }
         .card()
@@ -339,35 +340,35 @@ struct TodayView: View {
 
     private var recordsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Personal records").font(.lift(20, .bold))
+            Text(tr("Personal records")).font(.lift(20, .bold))
             if topLifts.isEmpty {
-                EmptyStateView(icon: "trophy", title: "No records yet",
-                               message: "Your best lifts will appear here after you finish a workout.")
+                EmptyStateView(icon: "trophy", title: tr("No records yet"),
+                               message: tr("Your best lifts will appear here after you finish a workout."))
             } else {
                 ForEach(topLifts, id: \.name) { lift in
                     HStack {
-                        Text(lift.name).font(.lift(15, .semibold))
+                        Text(tr(lift.name)).font(.lift(15, .semibold))
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(unit.format(lift.value)).font(.lift(17, .bold))
-                            Text("est. 1RM").font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
+                            Text(tr("est. 1RM")).font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
                         }
                     }
                 }
                 let recent = records.filter { !$0.isBaseline }.prefix(3)
                 if !recent.isEmpty {
                     Divider().overlay(Theme.hairline)
-                    Text("Latest").font(.lift(12, .semibold)).foregroundStyle(Theme.textSecondary)
+                    Text(tr("Latest")).font(.lift(12, .semibold)).foregroundStyle(Theme.textSecondary)
                     ForEach(Array(recent)) { r in
                         HStack(spacing: 8) {
                             Image(systemName: "trophy.fill").foregroundStyle(Theme.accent).font(.system(size: 12))
-                            Text("\(r.exerciseName) · \(r.type.rawValue)").font(.lift(13, .medium))
+                            Text("\(tr(r.exerciseName)) · \(r.type.title)").font(.lift(13, .medium))
                             Spacer()
                             Text(r.type.formatted(r.value, unit: unit)).font(.lift(13, .bold))
                         }
                     }
                 }
-                Text("1RM is estimated with the Epley formula, not a verified max lift.")
+                Text(tr("1RM is estimated with the Epley formula, not a verified max lift."))
                     .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
             }
         }

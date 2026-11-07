@@ -159,20 +159,22 @@ struct ProgressionSuggestion {
 
 extension StatsService {
     /// Double progression: if every working set reached 8+ reps, add weight; otherwise add a rep at the same weight.
-    static func suggestion(for exercise: Exercise, last: ExerciseSession, stepKg: Double, unit: WeightUnit) -> ProgressionSuggestion? {
+    static func suggestion(for exercise: Exercise, last: ExerciseSession, stepKg: Double, unit: WeightUnit,
+                           targetMin: Int = 8, targetMax: Int = 8) -> ProgressionSuggestion? {
         guard exercise.equipment != .bodyweight, !last.sets.isEmpty else { return nil }
         let topWeight = last.maxWeightKg
         guard topWeight > 0 else { return nil }
         let working = last.sets.filter { $0.weightKg >= topWeight * 0.9 }
         let minReps = working.map(\.reps).min() ?? 0
-        let ref = "\(working.count)×\(minReps) at \(unit.format(topWeight))"
-        if minReps >= 8 {
+        let ref = trf("%d×%d at %@", working.count, minReps, unit.format(topWeight))
+        if minReps >= targetMax {
             let next = topWeight + stepKg
-            return ProgressionSuggestion(weightKg: next, reps: 8,
-                                         reason: "You hit \(ref). Add \(unit.format(stepKg)) and aim for 8 reps.")
+            return ProgressionSuggestion(weightKg: next, reps: targetMin,
+                                         reason: trf("You hit %@. Add %@ and aim for %d reps.", ref, unit.format(stepKg), targetMin))
         }
-        return ProgressionSuggestion(weightKg: topWeight, reps: minReps + 1,
-                                     reason: "Last time \(ref). Same weight, aim for \(minReps + 1) reps.")
+        let nextReps = min(minReps + 1, max(targetMax, 1))
+        return ProgressionSuggestion(weightKg: topWeight, reps: nextReps,
+                                     reason: trf("Last time %@. Same weight, aim for %d reps.", ref, nextReps))
     }
 
     /// Working volume per muscle group (kg) for workouts started in the last `days` days.

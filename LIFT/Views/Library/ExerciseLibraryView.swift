@@ -38,7 +38,7 @@ struct ExerciseLibraryView: View {
             ForEach(MuscleGroup.allCases) { group in
                 let items = filtered.filter { $0.muscle == group }
                 if !items.isEmpty {
-                    Section(group.rawValue) {
+                    Section(group.title) {
                         ForEach(items) { ex in
                             row(ex)
                                 .deleteDisabled(!ex.isCustom || isPicking)
@@ -50,21 +50,22 @@ struct ExerciseLibraryView: View {
             }
 
             if filtered.isEmpty {
-                EmptyStateView(icon: "magnifyingglass", title: "No exercises found",
-                               message: favoritesOnly ? "Swipe an exercise to the right to add it to favourites."
-                                                      : "Try another search or create your own exercise.",
-                               actionTitle: "Create Exercise") { showAdd = true }
+                EmptyStateView(icon: "magnifyingglass", title: tr("No exercises found"),
+                               message: favoritesOnly ? tr("Swipe an exercise to the right to add it to favourites.")
+                                                      : tr("Try another search or create your own exercise."),
+                               actionTitle: tr("Create Exercise")) { showAdd = true }
                     .listRowBackground(Color.clear)
             }
         }
         .scrollContentBackground(.hidden)
         .screenBackground()
-        .navigationTitle(isPicking ? "Add Exercises" : "Exercise Library")
+        .tabBarClearance(!isPicking)
+        .navigationTitle(isPicking ? tr("Add Exercises") : tr("Exercise Library"))
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $search, prompt: "Search exercises")
+        .searchable(text: $search, prompt: tr("Search exercises"))
         .toolbar {
             if isPicking {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Cancel")) { dismiss() } }
             }
             ToolbarItem(placement: .primaryAction) {
                 Button { showAdd = true } label: { Image(systemName: "plus") }
@@ -76,17 +77,17 @@ struct ExerciseLibraryView: View {
                     let picked = selection.compactMap { id in exercises.first { $0.id == id } }
                     onPick?(picked)
                     dismiss()
-                } label: { Text("Add \(selection.count) exercise\(selection.count == 1 ? "" : "s")") }
+                } label: { Text("\(tr("Add")) \(countText(selection.count, .exercise))") }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(16)
                     .background(.ultraThinMaterial)
             }
         }
         .sheet(isPresented: $showAdd) { AddExerciseView() }
-        .alert("Can't delete", isPresented: $blockedDelete) {
-            Button("OK", role: .cancel) {}
+        .alert(tr("Can't delete"), isPresented: $blockedDelete) {
+            Button(tr("OK"), role: .cancel) {}
         } message: {
-            Text("This exercise is part of your workout history. Delete those workouts first.")
+            Text(tr("This exercise is part of your workout history. Delete those workouts first."))
         }
     }
 
@@ -95,12 +96,12 @@ struct ExerciseLibraryView: View {
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip("All", isOn: muscleFilter == nil && !favoritesOnly) {
+                chip(tr("All"), isOn: muscleFilter == nil && !favoritesOnly) {
                     muscleFilter = nil; favoritesOnly = false
                 }
-                chip("★ Favorites", isOn: favoritesOnly) { favoritesOnly.toggle(); if favoritesOnly { muscleFilter = nil } }
+                chip(tr("★ Favorites"), isOn: favoritesOnly) { favoritesOnly.toggle(); if favoritesOnly { muscleFilter = nil } }
                 ForEach(MuscleGroup.allCases) { g in
-                    chip(g.rawValue, isOn: muscleFilter == g) {
+                    chip(g.title, isOn: muscleFilter == g) {
                         muscleFilter = (muscleFilter == g) ? nil : g
                         favoritesOnly = false
                     }
@@ -144,7 +145,7 @@ struct ExerciseLibraryView: View {
             NavigationLink { ExerciseDetailView(exercise: ex) } label: { label(ex) }
                 .swipeActions(edge: .leading) {
                     Button { ex.isFavorite.toggle(); try? context.save() } label: {
-                        Label(ex.isFavorite ? "Unfavorite" : "Favorite", systemImage: ex.isFavorite ? "star.slash" : "star.fill")
+                        Label(ex.isFavorite ? tr("Unfavorite") : tr("Favorite"), systemImage: ex.isFavorite ? "star.slash" : "star.fill")
                     }
                     .tint(.yellow)
                 }
@@ -160,10 +161,10 @@ struct ExerciseLibraryView: View {
                 .background(Theme.cardHigh, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(ex.name).font(.lift(16, .semibold))
+                    Text(tr(ex.name)).font(.lift(16, .semibold))
                     if ex.isFavorite { Image(systemName: "star.fill").font(.system(size: 11)).foregroundStyle(.yellow) }
                 }
-                Text("\(ex.muscle.rawValue) · \(ex.equipment.rawValue)\(ex.isCustom ? " · Custom" : "")")
+                Text("\(ex.muscle.title) · \(ex.equipment.title)\(ex.isCustom ? " · " + tr("Custom") : "")")
                     .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
             }
             Spacer(minLength: 0)
@@ -199,39 +200,40 @@ struct ExerciseDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
-                    Tag(text: exercise.muscle.rawValue)
-                    Tag(text: exercise.equipment.rawValue)
-                    if exercise.isCustom { Tag(text: "Custom") }
+                    Tag(text: exercise.muscle.title)
+                    Tag(text: exercise.equipment.title)
+                    if exercise.isCustom { Tag(text: tr("Custom")) }
                     Spacer()
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Technique").font(.lift(18, .bold))
-                    Text(exercise.technique.isEmpty ? "No description added." : exercise.technique)
+                    Text(tr("Technique")).font(.lift(18, .bold))
+                    Text(exercise.technique.isEmpty ? tr("No description added.") : tr(exercise.technique))
                         .font(.lift(15, .medium)).foregroundStyle(Theme.textSecondary)
                 }
                 .card()
 
                 if sessions.isEmpty {
-                    Text("You haven't logged this exercise yet.")
+                    Text(tr("You haven't logged this exercise yet."))
                         .font(.lift(13, .medium)).foregroundStyle(Theme.textSecondary)
                 } else {
                     let summary = ExerciseSummary(sessions: sessions)
                     HStack(spacing: 12) {
-                        StatTile(title: "Sessions", value: "\(sessions.count)")
-                        StatTile(title: "Best 1RM (est.)", value: unit.format(summary.bestE1RMKg, withUnit: false), unit: unit.label)
+                        StatTile(title: tr("Sessions"), value: "\(sessions.count)")
+                        StatTile(title: tr("Best 1RM (est.)"), value: unit.format(summary.bestE1RMKg, withUnit: false), unit: unit.label)
                     }
                     Button {
                         router.progressExerciseID = exercise.id
                         router.tab = .progress
-                    } label: { Label("View Progress", systemImage: "chart.line.uptrend.xyaxis") }
+                    } label: { Label(tr("View Progress"), systemImage: "chart.line.uptrend.xyaxis") }
                         .buttonStyle(PrimaryButtonStyle())
                 }
             }
             .padding(16)
         }
         .screenBackground()
-        .navigationTitle(exercise.name)
+        .tabBarClearance()
+        .navigationTitle(tr(exercise.name))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -262,30 +264,30 @@ struct AddExerciseView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Name") {
-                    TextField("e.g. Cable Crossover", text: $name)
+                Section(tr("Name")) {
+                    TextField(tr("e.g. Cable Crossover"), text: $name)
                 }
-                Section("Details") {
-                    Picker("Muscle group", selection: $muscle) {
-                        ForEach(MuscleGroup.allCases) { Text($0.rawValue).tag($0) }
+                Section(tr("Details")) {
+                    Picker(tr("Muscle group"), selection: $muscle) {
+                        ForEach(MuscleGroup.allCases) { Text($0.title).tag($0) }
                     }
-                    Picker("Equipment", selection: $equipment) {
-                        ForEach(Equipment.allCases) { Text($0.rawValue).tag($0) }
+                    Picker(tr("Equipment"), selection: $equipment) {
+                        ForEach(Equipment.allCases) { Text($0.title).tag($0) }
                     }
                 }
-                Section("Technique (optional)") {
-                    TextField("How to perform it", text: $technique, axis: .vertical)
+                Section(tr("Technique (optional)")) {
+                    TextField(tr("How to perform it"), text: $technique, axis: .vertical)
                         .lineLimit(3...8)
                 }
             }
             .scrollContentBackground(.hidden)
             .screenBackground()
-            .navigationTitle("New Exercise")
+            .navigationTitle(tr("New Exercise"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Cancel")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(tr("Save")) {
                         let trimmed = name.trimmingCharacters(in: .whitespaces)
                         context.insert(Exercise(name: trimmed, muscle: muscle, equipment: equipment,
                                                 technique: technique, isCustom: true))

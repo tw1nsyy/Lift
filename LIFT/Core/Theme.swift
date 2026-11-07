@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UIKit
 
 // MARK: - Colors
@@ -157,9 +158,9 @@ struct DeltaBadge: View {
                 Text(String(format: "-%.1f%%", abs(p)))
             case .flat:
                 Image(systemName: "equal")
-                Text("No change")
+                Text(tr("No change"))
             case .insufficient:
-                Text("Not enough data")
+                Text(tr("Not enough data"))
             }
         }
         .font(.lift(13, .bold))
@@ -233,4 +234,21 @@ struct ShareSheet: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Tab bar clearance
+
+/// The floating tab bar (and the "workout in progress" bar) overlay the content,
+/// so every scrollable screen needs extra bottom space to scroll fully clear of them.
+struct TabBarClearance: ViewModifier {
+    var enabled = true
+    @Query(filter: #Predicate<Workout> { $0.isFinished == false }) private var active: [Workout]
+
+    func body(content: Content) -> some View {
+        content.contentMargins(.bottom, enabled ? (active.isEmpty ? 100 : 170) : 0, for: .scrollContent)
+    }
+}
+
+extension View {
+    func tabBarClearance(_ enabled: Bool = true) -> some View { modifier(TabBarClearance(enabled: enabled)) }
 }

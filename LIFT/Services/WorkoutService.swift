@@ -20,10 +20,10 @@ enum WorkoutService {
     static func defaultName(_ date: Date = Date()) -> String {
         let h = Calendar.current.component(.hour, from: date)
         switch h {
-        case 5..<12: return "Morning Workout"
-        case 12..<17: return "Afternoon Workout"
-        case 17..<22: return "Evening Workout"
-        default: return "Night Workout"
+        case 5..<12: return tr("Morning Workout")
+        case 12..<17: return tr("Afternoon Workout")
+        case 17..<22: return tr("Evening Workout")
+        default: return tr("Night Workout")
         }
     }
 
@@ -39,7 +39,8 @@ enum WorkoutService {
         if let template {
             for item in template.sortedItems {
                 guard let ex = item.exercise else { continue }
-                addExercise(ex, to: w, context: context, setCount: item.sets, reps: item.reps, fallbackWeightKg: item.weightKg)
+                addExercise(ex, to: w, context: context, setCount: item.sets, reps: item.reps, fallbackWeightKg: item.weightKg,
+                            repsMax: item.repsMax, restSeconds: item.restSeconds)
             }
         }
         try? context.save()
@@ -55,7 +56,8 @@ enum WorkoutService {
         context.insert(w)
         for we in source.sortedExercises {
             guard let ex = we.exercise else { continue }
-            addExercise(ex, to: w, context: context, setCount: max(we.sets.count, 1))
+            addExercise(ex, to: w, context: context, setCount: max(we.sets.count, 1),
+                        repsMin: we.repsMin, repsMax: we.repsMax, restSeconds: we.restSeconds)
         }
         try? context.save()
         router.presentedWorkout = w
@@ -63,16 +65,20 @@ enum WorkoutService {
 
     /// Adds an exercise; sets are prefilled from the previous session of that exercise when available.
     static func addExercise(_ exercise: Exercise, to workout: Workout, context: ModelContext,
-                            setCount: Int? = nil, reps: Int? = nil, fallbackWeightKg: Double = 0) {
+                            setCount: Int? = nil, reps: Int? = nil, fallbackWeightKg: Double = 0,
+                            repsMin: Int = 0, repsMax: Int = 0, restSeconds: Int = 0) {
         let history = StatsService.finishedWorkouts(context)
         let last = StatsService.sessions(for: exercise, in: history).last?.sets ?? []
         let count = setCount ?? (last.isEmpty ? 3 : min(last.count, 8))
         let entry = WorkoutExercise(order: workout.exercises.count, exercise: exercise)
         context.insert(entry)
         entry.workout = workout
+        entry.repsMin = repsMin > 0 ? repsMin : (reps ?? 0)
+        entry.repsMax = repsMax
+        entry.restSeconds = restSeconds
         for i in 0..<count {
             let ref: SetSnapshot? = last.isEmpty ? nil : last[min(i, last.count - 1)]
-            let s = WorkoutSet(order: i, weightKg: ref?.weightKg ?? fallbackWeightKg, reps: reps ?? ref?.reps ?? 10)
+            let s = WorkoutSet(order: i, weightKg: ref?.weightKg ?? fallbackWeightKg, reps: ref?.reps ?? reps ?? 10)
             context.insert(s)
             s.workoutExercise = entry
         }

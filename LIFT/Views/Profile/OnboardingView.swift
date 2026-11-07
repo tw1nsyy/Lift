@@ -4,6 +4,7 @@ import SwiftData
 struct OnboardingView: View {
     @Bindable var profile: UserProfile
     @Environment(\.modelContext) private var context
+    @AppStorage(Lang.key) private var language: String = "ru"
     @State private var page = 0
 
     private let restOptions = [30, 60, 90, 120, 180]
@@ -29,7 +30,7 @@ struct OnboardingView: View {
                 }
                 .padding(.bottom, 16)
 
-                Button(page == 2 ? "Get Started" : "Continue") {
+                Button(page == 2 ? tr("Get Started") : tr("Continue")) {
                     hideKeyboard()
                     Haptics.tap()
                     if page == 2 {
@@ -63,17 +64,17 @@ struct OnboardingView: View {
     }
 
     private var welcome: some View {
-        hero("dumbbell.fill", "Welcome to LIFT",
-             "Log every set, watch every lift grow. Everything stays on your phone, no account needed.")
+        hero("dumbbell.fill", tr("Welcome to LIFT"),
+             tr("Log every set, watch every lift grow. Everything stays on your phone, no account needed."))
     }
 
     private var about: some View {
         VStack(spacing: 22) {
             Spacer()
-            feature("square.and.pencil", "Fast logging", "Weights and reps are prefilled from your last session.")
-            feature("chart.line.uptrend.xyaxis", "Real progress", "Per-exercise charts for estimated 1RM, weight, volume and reps.")
-            feature("lightbulb.fill", "Smart suggestions", "Hit your reps on every set and LIFT suggests when to add weight.")
-            feature("trophy.fill", "Personal records", "New records are detected automatically, never invented.")
+            feature("square.and.pencil", tr("Fast logging"), tr("Weights and reps are prefilled from your last session."))
+            feature("chart.line.uptrend.xyaxis", tr("Real progress"), tr("Per-exercise charts for estimated 1RM, weight, volume and reps."))
+            feature("lightbulb.fill", tr("Smart suggestions"), tr("Hit your reps on every set and LIFT suggests when to add weight."))
+            feature("trophy.fill", tr("Personal records"), tr("New records are detected automatically, never invented."))
             Spacer()
         }
         .padding(.horizontal, 28)
@@ -97,40 +98,45 @@ struct OnboardingView: View {
     private var goals: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text("Set up your profile").font(.lift(30, .bold)).padding(.top, 40)
+                Text(tr("Set up your profile")).font(.lift(30, .bold)).padding(.top, 40)
+
+                Picker(tr("Language"), selection: $language) {
+                    ForEach(AppLanguage.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                .pickerStyle(.segmented)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Your name").font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
-                    TextField("Optional", text: $profile.name)
+                    Text(tr("Your name")).font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
+                    TextField(tr("Optional"), text: $profile.name)
                         .font(.lift(18, .semibold))
                         .padding(14)
                         .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Weight unit").font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
-                    Picker("Unit", selection: Binding(get: { profile.unit }, set: { profile.unit = $0 })) {
+                    Text(tr("Weight unit")).font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
+                    Picker(tr("Unit"), selection: Binding(get: { profile.unit }, set: { profile.unit = $0 })) {
                         ForEach(WeightUnit.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Workouts per week").font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
+                    Text(tr("Workouts per week")).font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
                     Stepper(value: $profile.weeklyGoal, in: 1...7) {
-                        Text("\(profile.weeklyGoal) per week").font(.lift(18, .bold))
+                        Text(trf("%d per week", profile.weeklyGoal)).font(.lift(18, .bold))
                     }
                     .padding(14)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Default rest between sets").font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
+                    Text(tr("Default rest between sets")).font(.lift(13, .semibold)).foregroundStyle(Theme.textSecondary)
                     HStack(spacing: 8) {
                         ForEach(restOptions, id: \.self) { s in
                             let on = profile.defaultRestSeconds == s
                             Button { profile.defaultRestSeconds = s } label: {
-                                Text("\(s)s")
+                                Text(trf("%ds", s))
                                     .font(.lift(14, .bold))
                                     .foregroundStyle(on ? Theme.background : Theme.textPrimary)
                                     .frame(maxWidth: .infinity)

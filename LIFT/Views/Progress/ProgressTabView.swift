@@ -58,14 +58,14 @@ struct ProgressTabView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    Text("Progress")
+                    Text(tr("Progress"))
                         .font(.lift(30, .bold))
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     if data.isEmpty {
-                        EmptyStateView(icon: "chart.line.uptrend.xyaxis", title: "No progress yet",
-                                       message: "Finish your first workout and your results will be charted here, per exercise.",
-                                       actionTitle: "Start Workout") {
+                        EmptyStateView(icon: "chart.line.uptrend.xyaxis", title: tr("No progress yet"),
+                                       message: tr("Finish your first workout and your results will be charted here, per exercise."),
+                                       actionTitle: tr("Start Workout")) {
                             router.tab = .workout
                         }
                         .card()
@@ -84,6 +84,7 @@ struct ProgressTabView: View {
                 .padding(.bottom, 24)
             }
             .screenBackground()
+            .tabBarClearance()
             .toolbar(.hidden, for: .navigationBar)
         }
     }
@@ -100,7 +101,7 @@ struct ProgressTabView: View {
                             router.progressExerciseID = nil
                         }
                     } label: {
-                        Text(item.exercise.name)
+                        Text(tr(item.exercise.name))
                             .font(.lift(14, .bold))
                             .foregroundStyle(isOn ? Theme.background : Theme.textPrimary)
                             .padding(.horizontal, 14).padding(.vertical, 9)
@@ -132,7 +133,7 @@ struct ExerciseProgressContent: View {
     }
 
     private var headline: Double { display(sessions.last?.value(metric) ?? 0) }
-    private var unitLabel: String { metric.isWeightBased ? unit.label : "reps" }
+    private var unitLabel: String { metric.isWeightBased ? unit.label : tr("reps") }
     private var trend: Trend { StatsService.trend(values: sessions.map { $0.value(metric) }) }
 
     private var selectedPoint: ChartPoint? {
@@ -144,7 +145,19 @@ struct ExerciseProgressContent: View {
         let vals = points.map(\.value)
         guard let lo = vals.min(), let hi = vals.max() else { return 0...1 }
         let pad = hi == lo ? max(hi * 0.1, 1) : (hi - lo) * 0.25
+        if metric == .reps {
+            // Whole reps only: no 15.5 reps on the axis.
+            let p = max(pad, 1)
+            return max(0, (lo - p).rounded(.down))...((hi + p).rounded(.up))
+        }
         return max(0, lo - pad)...(hi + pad)
+    }
+
+    private var yAxisValues: AxisMarkValues {
+        if metric == .reps {
+            return .stride(by: max(1, ((yDomain.upperBound - yDomain.lowerBound) / 4).rounded(.up)))
+        }
+        return .automatic(desiredCount: 4)
     }
 
     var body: some View {
@@ -155,7 +168,7 @@ struct ExerciseProgressContent: View {
             statsGrid
             recordsCard
             sessionsCard
-            Text("1RM is an estimate calculated with the Epley formula: weight × (1 + reps ÷ 30). It is not a verified max lift.")
+            Text(tr("1RM is an estimate calculated with the Epley formula: weight × (1 + reps ÷ 30). It is not a verified max lift."))
                 .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -165,7 +178,7 @@ struct ExerciseProgressContent: View {
 
     private var headerCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(exercise.name).font(.lift(15, .semibold)).foregroundStyle(Theme.textSecondary)
+            Text(tr(exercise.name)).font(.lift(15, .semibold)).foregroundStyle(Theme.textSecondary)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(formatNumber(headline))
                     .font(.lift(56, .bold))
@@ -175,7 +188,7 @@ struct ExerciseProgressContent: View {
                 Spacer(minLength: 4)
                 DeltaBadge(trend: trend)
             }
-            Text(metric.title + " · last session" + (sessions.count >= 2 ? " vs previous" : ""))
+            Text(metric.title + " · " + tr("last session") + (sessions.count >= 2 ? " " + tr("vs previous") : ""))
                 .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
         }
         .card()
@@ -189,7 +202,7 @@ struct ExerciseProgressContent: View {
                     Haptics.tap()
                     withAnimation(.easeInOut(duration: 0.3)) { metric = m; selectedDate = nil }
                 } label: {
-                    Text(m.rawValue)
+                    Text(m.label)
                         .font(.lift(13, .bold))
                         .foregroundStyle(metric == m ? Theme.background : Theme.textPrimary)
                         .frame(maxWidth: .infinity)
@@ -208,21 +221,23 @@ struct ExerciseProgressContent: View {
             HStack {
                 Text(metric.title).font(.lift(15, .bold))
                 Spacer()
-                Picker("Range", selection: $range) {
-                    ForEach(ChartRange.allCases) { Text($0.rawValue).tag($0) }
+                Picker(tr("Range"), selection: $range) {
+                    ForEach(ChartRange.allCases) { Text(tr($0.rawValue)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 180)
             }
 
             if points.isEmpty {
-                Text("No sessions in this period.")
+                Text(tr("No sessions in this period."))
                     .font(.lift(13, .medium)).foregroundStyle(Theme.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 200)
             } else {
                 Chart {
                     ForEach(points) { p in
-                        AreaMark(x: .value("Date", p.date), y: .value(metric.rawValue, p.value))
+                        AreaMark(x: .value("Date", p.date),
+                                 yStart: .value("Base", yDomain.lowerBound),
+                                 yEnd: .value(metric.rawValue, p.value))
                             .interpolationMethod(.catmullRom)
                             .foregroundStyle(LinearGradient(colors: [Theme.accent.opacity(0.28), Theme.accent.opacity(0)],
                                                             startPoint: .top, endPoint: .bottom))
@@ -242,7 +257,7 @@ struct ExerciseProgressContent: View {
                                         overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
                                 VStack(spacing: 2) {
                                     Text("\(formatNumber(sel.value)) \(unitLabel)").font(.lift(13, .bold))
-                                    Text(sel.date.formatted(.dateTime.month(.abbreviated).day()))
+                                    Text(sel.date.f(.dateTime.month(.abbreviated).day()))
                                         .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
                                 }
                                 .padding(.horizontal, 10).padding(.vertical, 6)
@@ -260,7 +275,7 @@ struct ExerciseProgressContent: View {
                     }
                 }
                 .chartYAxis {
-                    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                    AxisMarks(position: .leading, values: yAxisValues) { _ in
                         AxisGridLine().foregroundStyle(Theme.hairline)
                         AxisValueLabel().foregroundStyle(Theme.textSecondary)
                     }
@@ -269,7 +284,7 @@ struct ExerciseProgressContent: View {
                 .animation(.easeInOut(duration: 0.35), value: metric)
 
                 if points.count == 1 {
-                    Text("Log more sessions to see a trend.")
+                    Text(tr("Log more sessions to see a trend."))
                         .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
                 }
             }
@@ -282,14 +297,14 @@ struct ExerciseProgressContent: View {
     private var statsGrid: some View {
         let change = summary.changeSinceFirst(.oneRM)
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-            StatTile(title: "Current 1RM (est.)", value: unit.format(summary.currentE1RMKg, withUnit: false), unit: unit.label, icon: "bolt.fill")
-            StatTile(title: "Best set",
+            StatTile(title: tr("Current 1RM (est.)"), value: unit.format(summary.currentE1RMKg, withUnit: false), unit: unit.label, icon: "bolt.fill")
+            StatTile(title: tr("Best set"),
                      value: summary.bestSet.map { "\(unit.format($0.weightKg, withUnit: false))×\($0.reps)" } ?? "—",
                      unit: unit.label, icon: "star.fill")
-            StatTile(title: "Max weight", value: unit.format(summary.maxWeightKg, withUnit: false), unit: unit.label, icon: "scalemass.fill")
-            StatTile(title: "Total volume", value: unit.formatVolume(summary.totalVolumeKg), unit: unit.label, icon: "chart.bar.fill")
-            StatTile(title: "Max reps", value: "\(summary.maxReps)", unit: "reps", icon: "repeat")
-            StatTile(title: "1RM change", value: change.map { String(format: "%+.1f%%", $0) } ?? "—",
+            StatTile(title: tr("Max weight"), value: unit.format(summary.maxWeightKg, withUnit: false), unit: unit.label, icon: "scalemass.fill")
+            StatTile(title: tr("Total volume"), value: unit.formatVolume(summary.totalVolumeKg), unit: unit.label, icon: "chart.bar.fill")
+            StatTile(title: tr("Max reps"), value: "\(summary.maxReps)", unit: tr("reps"), icon: "repeat")
+            StatTile(title: tr("1RM change"), value: change.map { String(format: "%+.1f%%", $0) } ?? "—",
                      icon: "arrow.up.right",
                      tint: (change ?? 0) > 0 ? Theme.accent : Theme.textPrimary)
         }
@@ -297,21 +312,21 @@ struct ExerciseProgressContent: View {
 
     private var recordsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Personal records").font(.lift(18, .bold))
+            Text(tr("Personal records")).font(.lift(18, .bold))
             ForEach(RecordType.allCases) { type in
                 let best = records.filter { $0.type == type }.max { $0.value < $1.value }
                 HStack(spacing: 10) {
                     Image(systemName: type.icon).foregroundStyle(Theme.accent).frame(width: 22)
-                    Text(type.rawValue).font(.lift(14, .semibold))
+                    Text(type.title).font(.lift(14, .semibold))
                     Spacer()
                     if let best {
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(type.formatted(best.value, unit: unit)).font(.lift(15, .bold))
-                            Text(best.date.formatted(.dateTime.month(.abbreviated).day().year()))
+                            Text(best.date.f(.dateTime.month(.abbreviated).day().year()))
                                 .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
                         }
                     } else {
-                        Text("—").foregroundStyle(Theme.textSecondary)
+                        Text(tr("—")).foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
@@ -321,11 +336,11 @@ struct ExerciseProgressContent: View {
 
     private var sessionsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent sessions").font(.lift(18, .bold))
+            Text(tr("Recent sessions")).font(.lift(18, .bold))
             ForEach(sessions.reversed().prefix(8)) { s in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(s.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                        Text(s.date.f(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
                             .font(.lift(14, .semibold))
                         Text(s.sets.map { "\(unit.format($0.weightKg, withUnit: false))×\($0.reps)" }.joined(separator: "  "))
                             .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary).lineLimit(1)

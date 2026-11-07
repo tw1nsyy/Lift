@@ -5,6 +5,10 @@ import SwiftData
 @MainActor
 final class LIFTTests: XCTestCase {
 
+    override func setUpWithError() throws {
+        UserDefaults.standard.set("en", forKey: Lang.key)
+    }
+
     private func makeContext() throws -> ModelContext {
         let container = try ModelContainer(
             for: UserProfile.self, Exercise.self, Workout.self, WorkoutExercise.self,

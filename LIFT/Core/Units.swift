@@ -3,7 +3,7 @@ import SwiftUI
 enum WeightUnit: String, CaseIterable, Identifiable, Codable {
     case kg, lb
     var id: String { rawValue }
-    var label: String { rawValue }
+    var label: String { tr(rawValue) }
 
     private var factor: Double { self == .kg ? 1 : 2.2046226218 }
 

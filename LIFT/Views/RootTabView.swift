@@ -19,6 +19,7 @@ struct RootTabView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppRouter.self) private var router
+    @AppStorage(Lang.key) private var language: String = "ru"
     @Query private var profiles: [UserProfile]
     @Query(filter: #Predicate<Workout> { $0.isFinished == false }) private var activeWorkouts: [Workout]
 
@@ -34,7 +35,8 @@ struct RootTabView: View {
             HistoryView().tag(AppTab.history).toolbar(.hidden, for: .tabBar)
             ProfileView().tag(AppTab.profile).toolbar(.hidden, for: .tabBar)
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .id(language)
+        .overlay(alignment: .bottom) {
             VStack(spacing: 0) {
                 if let active = activeWorkouts.first, router.presentedWorkout == nil {
                     ActiveWorkoutBar(workout: active) { router.presentedWorkout = active }
@@ -51,9 +53,11 @@ struct RootTabView: View {
         .fullScreenCover(item: $router.presentedWorkout) { workout in
             ActiveWorkoutView(workout: workout)
                 .environment(\.weightUnit, unit)
+                .environment(\.locale, Lang.locale)
                 .preferredColorScheme(profiles.first?.theme.colorScheme)
         }
         .environment(\.weightUnit, unit)
+        .environment(\.locale, Lang.locale)
         .preferredColorScheme(profiles.first?.theme.colorScheme)
         .tint(Theme.accent)
         .overlay {
@@ -84,7 +88,7 @@ struct CustomTabBar: View {
                         Image(systemName: tab.icon)
                             .font(.system(size: 19, weight: .semibold))
                             .symbolEffect(.bounce, value: selection == tab)
-                        Text(tab.rawValue).font(.lift(10, .semibold))
+                        Text(tab.title).font(.lift(10, .semibold))
                     }
                     .foregroundStyle(selection == tab ? Theme.textPrimary : Theme.textSecondary)
                     .frame(maxWidth: .infinity)
@@ -116,7 +120,7 @@ struct ActiveWorkoutBar: View {
             HStack(spacing: 12) {
                 Circle().fill(Theme.accent).frame(width: 8, height: 8)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(workout.name).font(.lift(15, .bold)).foregroundStyle(Theme.textPrimary)
+                    Text(tr(workout.name)).font(.lift(15, .bold)).foregroundStyle(Theme.textPrimary)
                     TimelineView(.periodic(from: .now, by: 1)) { ctx in
                         Text(elapsedString(from: workout.startedAt, to: ctx.date))
                             .font(.lift(12, .medium))
@@ -125,7 +129,7 @@ struct ActiveWorkoutBar: View {
                     }
                 }
                 Spacer()
-                Text("Resume")
+                Text(tr("Resume"))
                     .font(.lift(14, .bold))
                     .foregroundStyle(Theme.background)
                     .padding(.horizontal, 14)

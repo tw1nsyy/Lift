@@ -13,9 +13,9 @@ struct HistoryView: View {
 
     private var sections: [(title: String, items: [Workout])] {
         var result: [(title: String, items: [Workout])] = []
-        let cal = Calendar.current
+        let cal = Lang.calendar
         for w in workouts {
-            let title = w.startedAt.formatted(.dateTime.month(.wide).year())
+            let title = w.startedAt.f(.dateTime.month(.wide).year())
             if let last = result.last, cal.isDate(last.items[0].startedAt, equalTo: w.startedAt, toGranularity: .month) {
                 result[result.count - 1].items.append(w)
             } else {
@@ -35,17 +35,17 @@ struct HistoryView: View {
                 if workouts.isEmpty {
                     ScrollView {
                         VStack(spacing: 16) {
-                            Text("History").font(.lift(30, .bold)).frame(maxWidth: .infinity, alignment: .leading)
-                            EmptyStateView(icon: "clock.arrow.circlepath", title: "No workouts yet",
-                                           message: "Completed workouts will be listed here so you can review or repeat them.",
-                                           actionTitle: "Start Workout") { router.tab = .workout }
+                            Text(tr("History")).font(.lift(30, .bold)).frame(maxWidth: .infinity, alignment: .leading)
+                            EmptyStateView(icon: "clock.arrow.circlepath", title: tr("No workouts yet"),
+                                           message: tr("Completed workouts will be listed here so you can review or repeat them."),
+                                           actionTitle: tr("Start Workout")) { router.tab = .workout }
                                 .card()
                         }
                         .padding(16)
                     }
                 } else {
                     List {
-                        Text("History").font(.lift(30, .bold))
+                        Text(tr("History")).font(.lift(30, .bold))
                             .listRowBackground(Color.clear).listRowSeparator(.hidden)
                         ForEach(sections, id: \.title) { section in
                             Section {
@@ -56,7 +56,7 @@ struct HistoryView: View {
                                         .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                             Button(role: .destructive) { workoutToDelete = w } label: {
-                                                Label("Delete", systemImage: "trash")
+                                                Label(tr("Delete"), systemImage: "trash")
                                             }
                                         }
                                 }
@@ -70,17 +70,18 @@ struct HistoryView: View {
                 }
             }
             .screenBackground()
+            .tabBarClearance()
             .toolbar(.hidden, for: .navigationBar)
-            .confirmationDialog("Delete workout?", isPresented: Binding(get: { workoutToDelete != nil },
+            .confirmationDialog(tr("Delete workout?"), isPresented: Binding(get: { workoutToDelete != nil },
                                                                        set: { if !$0 { workoutToDelete = nil } }),
                                 titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
+                Button(tr("Delete"), role: .destructive) {
                     if let w = workoutToDelete { withAnimation { WorkoutService.delete(w, context: context) } }
                     workoutToDelete = nil
                 }
-                Button("Cancel", role: .cancel) { workoutToDelete = nil }
+                Button(tr("Cancel"), role: .cancel) { workoutToDelete = nil }
             } message: {
-                Text("Progress and records will be recalculated.")
+                Text(tr("Progress and records will be recalculated."))
             }
         }
     }
@@ -91,24 +92,24 @@ struct HistoryView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(w.name).font(.lift(17, .bold))
-                        Text(w.startedAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()))
+                        Text(tr(w.name)).font(.lift(17, .bold))
+                        Text(w.startedAt.f(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()))
                             .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
                     }
                     Spacer()
                     if prCount(w) > 0 {
-                        Label("\(prCount(w)) PR", systemImage: "trophy.fill")
+                        Label(trf("%d PR", prCount(w)), systemImage: "trophy.fill")
                             .font(.lift(12, .bold)).foregroundStyle(Theme.accent)
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .background(Theme.accent.opacity(0.15), in: Capsule())
                     }
                 }
                 HStack(spacing: 18) {
-                    stat(durationString(w.duration), "time")
-                    stat("\(w.completedSets.count)", "sets")
+                    stat(durationString(w.duration), tr("time"))
+                    stat("\(w.completedSets.count)", tr("sets"))
                     stat(unit.formatVolume(w.totalVolumeKg), unit.label)
                 }
-                Text(w.sortedExercises.map { $0.exercise?.name ?? $0.exerciseName }.joined(separator: " · "))
+                Text(w.sortedExercises.map { tr($0.exercise?.name ?? $0.exerciseName) }.joined(separator: " · "))
                     .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary).lineLimit(2)
             }
             .card()
@@ -142,14 +143,14 @@ struct WorkoutDetailView: View {
         ScrollView {
             VStack(spacing: 14) {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    StatTile(title: "Duration", value: durationString(workout.duration), icon: "clock.fill")
-                    StatTile(title: "Volume", value: unit.formatVolume(workout.totalVolumeKg), unit: unit.label, icon: "scalemass.fill")
-                    StatTile(title: "Sets", value: "\(workout.completedSets.count)", icon: "checkmark.circle.fill")
-                    StatTile(title: "Exercises", value: "\(workout.exercises.count)", icon: "dumbbell.fill")
+                    StatTile(title: tr("Duration"), value: durationString(workout.duration), icon: "clock.fill")
+                    StatTile(title: tr("Volume"), value: unit.formatVolume(workout.totalVolumeKg), unit: unit.label, icon: "scalemass.fill")
+                    StatTile(title: tr("Sets"), value: "\(workout.completedSets.count)", icon: "checkmark.circle.fill")
+                    StatTile(title: tr("Exercises"), value: "\(workout.exercises.count)", icon: "dumbbell.fill")
                 }
 
                 if isEditing {
-                    TextField("Notes", text: $workout.note, axis: .vertical)
+                    TextField(tr("Notes"), text: $workout.note, axis: .vertical)
                         .font(.lift(14, .medium))
                         .lineLimit(1...5)
                         .padding(14)
@@ -167,23 +168,24 @@ struct WorkoutDetailView: View {
 
                 Button {
                     WorkoutService.repeatWorkout(workout, context: context, router: router)
-                } label: { Label("Repeat Workout", systemImage: "arrow.counterclockwise") }
+                } label: { Label(tr("Repeat Workout"), systemImage: "arrow.counterclockwise") }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 4)
 
                 Button(role: .destructive) { confirmDelete = true } label: {
-                    Label("Delete Workout", systemImage: "trash").frame(maxWidth: .infinity)
+                    Label(tr("Delete Workout"), systemImage: "trash").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SoftButtonStyle(tint: Theme.danger))
             }
             .padding(16)
         }
         .screenBackground()
-        .navigationTitle(workout.name)
+        .tabBarClearance()
+        .navigationTitle(tr(workout.name))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(isEditing ? "Done" : "Edit") {
+                Button(isEditing ? tr("Done") : tr("Edit")) {
                     if isEditing { commitEdits() }
                     withAnimation { isEditing.toggle() }
                 }
@@ -191,14 +193,14 @@ struct WorkoutDetailView: View {
             }
         }
         .onDisappear { if changed { commitEdits() } }
-        .confirmationDialog("Delete workout?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
+        .confirmationDialog(tr("Delete workout?"), isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button(tr("Delete"), role: .destructive) {
                 WorkoutService.delete(workout, context: context)
                 dismiss()
             }
-            Button("Cancel", role: .cancel) {}
+            Button(tr("Cancel"), role: .cancel) {}
         } message: {
-            Text("Progress and records will be recalculated.")
+            Text(tr("Progress and records will be recalculated."))
         }
     }
 
@@ -217,17 +219,17 @@ struct WorkoutDetailView: View {
         let prs = records.filter { $0.workoutID == workout.id && $0.exerciseID == exID && !$0.isBaseline }
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(entry.exercise?.name ?? entry.exerciseName).font(.lift(18, .bold))
+                Text(tr(entry.exercise?.name ?? entry.exerciseName)).font(.lift(18, .bold))
                 Spacer()
                 if !prs.isEmpty {
-                    Label("PR", systemImage: "trophy.fill")
+                    Label(tr("PR"), systemImage: "trophy.fill")
                         .font(.lift(12, .bold)).foregroundStyle(Theme.accent)
                         .padding(.horizontal, 10).padding(.vertical, 4)
                         .background(Theme.accent.opacity(0.15), in: Capsule())
                 }
             }
             if !prs.isEmpty {
-                Text(prs.map { "\($0.type.rawValue): \($0.type.formatted($0.value, unit: unit))" }.joined(separator: " · "))
+                Text(prs.map { "\($0.type.title): \($0.type.formatted($0.value, unit: unit))" }.joined(separator: " · "))
                     .font(.lift(11, .medium)).foregroundStyle(Theme.accent)
             }
             ForEach(Array(entry.sortedSets.enumerated()), id: \.element.id) { idx, s in
@@ -239,7 +241,7 @@ struct WorkoutDetailView: View {
                             Button(role: .destructive) {
                                 WorkoutService.removeSet(s, from: entry, context: context)
                                 changed = true
-                            } label: { Label("Delete set", systemImage: "trash") }
+                            } label: { Label(tr("Delete set"), systemImage: "trash") }
                         }
                 } else {
                     HStack {
@@ -251,7 +253,7 @@ struct WorkoutDetailView: View {
                         Spacer()
                         let e1 = Formulas.epley1RM(weight: s.weightKg, reps: s.reps)
                         if e1 > 0 && !s.isWarmup {
-                            Text("≈ \(unit.format(e1)) 1RM").font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
+                            Text("≈ \(unit.format(e1)) \(tr("1RM"))").font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
                         }
                     }
                 }

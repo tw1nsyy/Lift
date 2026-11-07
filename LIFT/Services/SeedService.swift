@@ -40,6 +40,14 @@ enum SeedService {
         .init(name: "Romanian Deadlift", muscle: .legs, equipment: .barbell, technique: "Soft knees, push the hips back with the bar sliding down the thighs until you feel a hamstring stretch, then drive the hips forward."),
         .init(name: "Leg Curl", muscle: .legs, equipment: .machine, technique: "Align the knees with the pivot. Curl the pad toward the glutes, squeeze, and return slowly without letting the hips rise."),
         .init(name: "Calf Raises", muscle: .legs, equipment: .machine, technique: "Lower the heels for a full stretch, then rise onto the balls of the feet as high as possible and pause at the top."),
+        // Added for the Upper A / Upper B program
+        .init(name: "Incline Dumbbell Press", muscle: .chest, equipment: .dumbbell, technique: "Set the bench to about 30°. Press the dumbbells up and slightly together, lower until the elbows are just below the bench line, keeping the shoulder blades pinned back."),
+        .init(name: "Pec Deck Fly", muscle: .chest, equipment: .machine, technique: "Set the seat so the handles are at chest height. Bring the arms together in a wide arc, squeeze the chest, and return slowly without letting the weight stack touch down."),
+        .init(name: "Reverse Pec Deck", muscle: .shoulders, equipment: .machine, technique: "Sit facing the pad with the handles at shoulder height. Open the arms out to the sides, leading with the elbows, squeeze the rear shoulders, and return under control."),
+        .init(name: "Overhead Triceps Extension", muscle: .arms, equipment: .dumbbell, technique: "Hold one dumbbell (or a cable rope) overhead with the elbows pointing forward. Lower it behind the head by bending only at the elbows, then extend fully."),
+        .init(name: "Chest Supported Row", muscle: .back, equipment: .machine, technique: "Lie chest-down on an incline pad. Row the handles toward the lower ribs, squeezing the shoulder blades, and lower until the arms are fully stretched."),
+        .init(name: "Incline Dumbbell Curl", muscle: .arms, equipment: .dumbbell, technique: "Sit on a bench at 45–60° with the arms hanging back. Curl without swinging the shoulders forward, squeeze at the top, and lower to a full stretch."),
+        .init(name: "Reverse Curl", muscle: .arms, equipment: .barbell, technique: "Use an overhand grip on a barbell or EZ-bar. Keep the elbows at your sides and curl up with the wrists straight, then lower slowly."),
         // Core
         .init(name: "Plank", muscle: .core, equipment: .bodyweight, technique: "Forearms on the floor, body in a straight line from head to heels. Brace the abs and glutes and breathe steadily."),
         .init(name: "Cable Crunch", muscle: .core, equipment: .cable, technique: "Kneel facing the cable with the rope at your head. Curl the ribcage toward the pelvis, keeping the hips still, then return slowly.")
@@ -55,21 +63,67 @@ enum SeedService {
             context.insert(profile)
         }
 
-        if ((try? context.fetchCount(FetchDescriptor<Exercise>())) ?? 0) == 0 {
-            for item in library {
-                context.insert(Exercise(name: item.name, muscle: item.muscle, equipment: item.equipment, technique: item.technique))
-            }
-            try? context.save()
+        // Insert any library exercise that does not exist yet (also covers app updates).
+        let existing = Set(((try? context.fetch(FetchDescriptor<Exercise>())) ?? []).map { $0.name })
+        for item in library where !existing.contains(item.name) {
+            context.insert(Exercise(name: item.name, muscle: item.muscle, equipment: item.equipment, technique: item.technique))
         }
+        try? context.save()
 
-        guard !profile.didSeedDemo else { return }
         let exercises = (try? context.fetch(FetchDescriptor<Exercise>())) ?? []
 
-        insertDemoTemplates(exercises: exercises, context: context)
-        insertDemoWorkouts(exercises: exercises, context: context)
-        profile.didSeedDemo = true
-        try? context.save()
-        StatsService.rebuildRecords(context)
+        if !profile.didSeedDemo {
+            insertDemoTemplates(exercises: exercises, context: context)
+            insertDemoWorkouts(exercises: exercises, context: context)
+            profile.didSeedDemo = true
+            try? context.save()
+            StatsService.rebuildRecords(context)
+        }
+
+        if !profile.seededUpperProgram {
+            insertUpperProgram(exercises: exercises, context: context)
+            profile.seededUpperProgram = true
+            try? context.save()
+        }
+    }
+
+    // MARK: Upper A / Upper B program (name, sets, reps min, reps max, rest seconds)
+
+    private static func insertUpperProgram(exercises: [Exercise], context: ModelContext) {
+        func ex(_ n: String) -> Exercise? { exercises.first { $0.name == n } }
+        let plans: [(String, [(String, Int, Int, Int, Int)])] = [
+            ("Upper A — Chest, Shoulders, Triceps", [
+                ("Bench Press", 3, 6, 8, 180),
+                ("Incline Dumbbell Press", 3, 8, 12, 120),
+                ("Pec Deck Fly", 2, 12, 15, 90),
+                ("Shoulder Press", 3, 6, 10, 180),
+                ("Lateral Raises", 4, 12, 20, 90),
+                ("Reverse Pec Deck", 3, 12, 20, 90),
+                ("Triceps Pushdown", 3, 10, 15, 90),
+                ("Overhead Triceps Extension", 2, 10, 15, 90)]),
+            ("Upper B — Back, Shoulders, Biceps", [
+                ("Lat Pulldown", 3, 8, 12, 120),
+                ("Chest Supported Row", 3, 8, 12, 120),
+                ("Seated Cable Row", 3, 8, 12, 120),
+                ("Shoulder Press", 3, 8, 10, 180),
+                ("Lateral Raises", 4, 12, 20, 90),
+                ("Reverse Pec Deck", 3, 12, 20, 90),
+                ("Barbell Curl", 3, 8, 12, 90),
+                ("Incline Dumbbell Curl", 2, 10, 15, 90),
+                ("Reverse Curl", 2, 10, 15, 90)])
+        ]
+        for (name, items) in plans {
+            let t = WorkoutTemplate(name: name)
+            context.insert(t)
+            for (i, item) in items.enumerated() {
+                guard let e = ex(item.0) else { continue }
+                let ti = TemplateItem(order: i, exercise: e, sets: item.1, reps: item.2)
+                ti.repsMax = item.3
+                ti.restSeconds = item.4
+                context.insert(ti)
+                ti.template = t
+            }
+        }
     }
 
     // MARK: Demo templates
