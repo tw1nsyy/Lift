@@ -4,6 +4,7 @@ import SwiftData
 enum AppTab: String, CaseIterable, Identifiable {
     case today = "Today", workout = "Workout", progress = "Progress", history = "History", profile = "Profile"
     var id: String { rawValue }
+    var title: String { tr(rawValue) }
     var icon: String {
         switch self {
         case .today: "sun.max.fill"
