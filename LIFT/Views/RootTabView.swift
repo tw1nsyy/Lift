@@ -4,6 +4,7 @@ import SwiftData
 enum AppTab: String, CaseIterable, Identifiable {
     case today = "Today", workout = "Workout", progress = "Progress", history = "History", profile = "Profile"
     var id: String { rawValue }
+    var title: String { tr(rawValue) }
     var icon: String {
         switch self {
         case .today: "sun.max.fill"
@@ -80,26 +81,10 @@ struct CustomTabBar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases) { tab in
-                Button {
+                TabBarButton(tab: tab, isSelected: selection == tab, namespace: namespace) {
                     Haptics.tap()
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { selection = tab }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 19, weight: .semibold))
-                            .symbolEffect(.bounce, value: selection == tab)
-                        Text(tab.title).font(.lift(10, .semibold))
-                    }
-                    .foregroundStyle(selection == tab ? Theme.textPrimary : Theme.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background {
-                        if selection == tab {
-                            Capsule().fill(Theme.cardHigh).matchedGeometryEffect(id: "tab-bg", in: namespace)
-                        }
-                    }
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(6)
@@ -108,6 +93,48 @@ struct CustomTabBar: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 4)
         .padding(.top, 6)
+    }
+}
+
+struct TabBarButton: View {
+    let tab: AppTab
+    let isSelected: Bool
+    let namespace: Namespace.ID
+    let action: () -> Void
+
+    private var tint: Color {
+        if isSelected { return Theme.textPrimary }
+        return Theme.textSecondary
+    }
+
+    var body: some View {
+        Button(action: action) {
+            content
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var content: some View {
+        VStack(spacing: 4) {
+            Image(systemName: tab.icon)
+                .font(.system(size: 19, weight: .semibold))
+                .symbolEffect(.bounce, value: isSelected)
+            Text(tab.title)
+                .font(.lift(10, .semibold))
+        }
+        .foregroundStyle(tint)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(highlight)
+    }
+
+    @ViewBuilder
+    private var highlight: some View {
+        if isSelected {
+            Capsule()
+                .fill(Theme.cardHigh)
+                .matchedGeometryEffect(id: "tab-bg", in: namespace)
+        }
     }
 }
 
