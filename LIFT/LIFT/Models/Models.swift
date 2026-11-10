@@ -203,6 +203,8 @@ final class WorkoutExercise {
     var repsMin: Int = 0
     var repsMax: Int = 0
     var restSeconds: Int = 0
+    /// Why the app chose this weight (set when a workout is started from a program).
+    var planNote: String = ""
 
     @Relationship(deleteRule: .cascade, inverse: \WorkoutSet.workoutExercise)
     var sets: [WorkoutSet] = []
@@ -272,6 +274,9 @@ final class WorkoutTemplate {
     var isDemo: Bool
     /// Bitmask of planned weekdays: bit (weekday - 1), Calendar weekday 1 = Sunday.
     var weekdayMask: Int = 0
+    /// How weights progress when a workout is started from this program, and the reps kept in reserve.
+    var progressionRaw: String = "acsm"
+    var rir: Int = 2
 
     @Relationship(deleteRule: .cascade, inverse: \TemplateItem.template)
     var items: [TemplateItem] = []
@@ -285,6 +290,11 @@ final class WorkoutTemplate {
 
     var sortedItems: [TemplateItem] { items.sorted { $0.order < $1.order } }
     var totalSets: Int { items.reduce(0) { $0 + $1.sets } }
+
+    var progression: ProgressionModel {
+        get { ProgressionModel(rawValue: progressionRaw) ?? .acsm }
+        set { progressionRaw = newValue.rawValue }
+    }
 
     func isPlanned(weekday: Int) -> Bool { weekdayMask & (1 << (weekday - 1)) != 0 }
     func setPlanned(weekday: Int, _ on: Bool) {
