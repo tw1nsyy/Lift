@@ -194,6 +194,7 @@ struct ExerciseDetailView: View {
     @Environment(\.weightUnit) private var unit
     @Environment(AppRouter.self) private var router
     @Query(filter: #Predicate<Workout> { $0.isFinished == true }, sort: \Workout.startedAt) private var workouts: [Workout]
+    @State private var showCalc = false
 
     var body: some View {
         let sessions = StatsService.sessions(for: exercise, in: workouts)
@@ -212,6 +213,9 @@ struct ExerciseDetailView: View {
                         .font(.lift(15, .medium)).foregroundStyle(Theme.textSecondary)
                 }
                 .card()
+
+                Button { showCalc = true } label: { Label(tr("Weight calculator"), systemImage: "function") }
+                    .buttonStyle(PrimaryButtonStyle())
 
                 if sessions.isEmpty {
                     Text(tr("You haven't logged this exercise yet."))
@@ -235,6 +239,10 @@ struct ExerciseDetailView: View {
         .tabBarClearance()
         .navigationTitle(tr(exercise.name))
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showCalc) {
+            NavigationStack { OneRMCalculatorView(exercise: exercise) }
+                .environment(\.weightUnit, unit)
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

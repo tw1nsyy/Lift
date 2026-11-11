@@ -51,6 +51,21 @@ enum Formulas {
         return weight * (1 + Double(reps) / 30)
     }
 
+    /// Fraction of the one-rep max you can lift for `reps` repetitions (inverse Epley). 1 rep = 100%.
+    static func percentOfMax(reps: Int) -> Double {
+        reps <= 1 ? 1 : 1 / (1 + Double(reps) / 30)
+    }
+
+    static func weightForReps(oneRM: Double, reps: Int) -> Double {
+        oneRM * percentOfMax(reps: reps)
+    }
+
+    /// Roughly how many reps a given fraction of the max allows.
+    static func repsForPercent(_ p: Double) -> Int {
+        guard p > 0, p < 1 else { return 1 }
+        return max(1, Int((30 * (1 / p - 1)).rounded()))
+    }
+
     static func volume(weight: Double, reps: Int) -> Double {
         weight * Double(max(reps, 0))
     }

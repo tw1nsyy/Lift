@@ -138,6 +138,7 @@ struct WorkoutDetailView: View {
     @State private var isEditing = false
     @State private var changed = false
     @State private var confirmDelete = false
+    @State private var savedProgram = false
 
     var body: some View {
         ScrollView {
@@ -166,6 +167,10 @@ struct WorkoutDetailView: View {
                     exerciseCard(entry)
                 }
 
+                Button { saveAsProgram() } label: { Label(tr("Save as program"), systemImage: "square.and.arrow.down") }
+                    .buttonStyle(SoftButtonStyle())
+                    .frame(maxWidth: .infinity)
+
                 Button {
                     WorkoutService.repeatWorkout(workout, context: context, router: router)
                 } label: { Label(tr("Repeat Workout"), systemImage: "arrow.counterclockwise") }
@@ -193,6 +198,11 @@ struct WorkoutDetailView: View {
             }
         }
         .onDisappear { if changed { commitEdits() } }
+        .alert(tr("Program saved"), isPresented: $savedProgram) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(tr("You can find it in Workout → Programs."))
+        }
         .confirmationDialog(tr("Delete workout?"), isPresented: $confirmDelete, titleVisibility: .visible) {
             Button(tr("Delete"), role: .destructive) {
                 WorkoutService.delete(workout, context: context)
@@ -206,6 +216,27 @@ struct WorkoutDetailView: View {
 
     private func workingNumber(_ entry: WorkoutExercise, _ idx: Int) -> Int {
         entry.sortedSets.prefix(idx + 1).filter { !$0.isWarmup }.count
+    }
+
+    private func saveAsProgram() {
+        let t = WorkoutTemplate(name: tr(workout.name))
+        context.insert(t)
+        for (i, we) in workout.sortedExercises.enumerated() {
+            guard let ex = we.exercise else { continue }
+            let working = we.sortedSets.filter { !$0.isWarmup }
+            guard !working.isEmpty else { continue }
+            let reps = working.map { $0.reps }
+            let lo = reps.min() ?? 10, hi = reps.max() ?? 10
+            let item = TemplateItem(order: i, exercise: ex, sets: working.count, reps: lo,
+                                    weightKg: working.map { $0.weightKg }.max() ?? 0)
+            item.repsMax = hi > lo ? hi : 0
+            item.restSeconds = we.restSeconds
+            context.insert(item)
+            item.template = t
+        }
+        try? context.save()
+        Haptics.success()
+        savedProgram = true
     }
 
     private func commitEdits() {

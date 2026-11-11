@@ -152,4 +152,41 @@ final class LIFTTests: XCTestCase {
         t.setPlanned(weekday: 2, false)
         XCTAssertEqual(t.weekdayMask, 0)
     }
+
+    // MARK: Load planner
+
+    private func session(_ w: Double, _ sets: [(Double, Int)]) -> ExerciseSession {
+        ExerciseSession(id: UUID(), date: Date(), sets: sets.map { SetSnapshot(weightKg: $0.0, reps: $0.1) })
+    }
+
+    func testPlannerFromMaxUsesReservedReps() {
+        let ex = Exercise(name: "Bench Press", muscle: .chest, equipment: .barbell)
+        ex.manualOneRMKg = 100
+        // 8 reps with 2 in reserve = the 10RM load: 100 / (1 + 10/30) = 75 kg
+        let p = LoadPlanner.plan(exercise: ex, repsMin: 8, repsMax: 8, model: .rir, rir: 2, sessions: [], unit: .kg)
+        XCTAssertEqual(p?.weightKg, 75)
+        XCTAssertEqual(p?.reps, 8)
+    }
+
+    func testPlannerNeedsAMax() {
+        let ex = Exercise(name: "Bench Press", muscle: .chest, equipment: .barbell)
+        XCTAssertNil(LoadPlanner.plan(exercise: ex, repsMin: 8, repsMax: 8, model: .rir, rir: 2, sessions: [], unit: .kg))
+    }
+
+    func testAcsmRuleHoldsUntilTwoSessionsOverTarget() {
+        let ex = Exercise(name: "Bench Press", muscle: .chest, equipment: .barbell)
+        let one = [session(80, [(80, 10), (80, 10)])]            // 2 over a target of 8, only once
+        let held = LoadPlanner.plan(exercise: ex, repsMin: 6, repsMax: 8, model: .acsm, rir: 2, sessions: one, unit: .kg)
+        XCTAssertEqual(held?.weightKg, 80)
+        let two = [session(80, [(80, 10), (80, 10)]), session(80, [(80, 10), (80, 10)])]
+        let up = LoadPlanner.plan(exercise: ex, repsMin: 6, repsMax: 8, model: .acsm, rir: 2, sessions: two, unit: .kg)
+        XCTAssertEqual(up?.weightKg, 82.5)                        // +2.5% upper body, rounded to 2.5 kg
+    }
+
+    func testAcsmRuleAddsMoreForLegs() {
+        let ex = Exercise(name: "Squat", muscle: .legs, equipment: .barbell)
+        let two = [session(100, [(100, 10)]), session(100, [(100, 10)])]
+        let up = LoadPlanner.plan(exercise: ex, repsMin: 6, repsMax: 8, model: .acsm, rir: 2, sessions: two, unit: .kg)
+        XCTAssertEqual(up?.weightKg, 105)                         // +5%
+    }
 }

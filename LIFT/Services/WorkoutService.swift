@@ -37,10 +37,16 @@ enum WorkoutService {
         let w = Workout(name: name ?? template?.name ?? defaultName())
         context.insert(w)
         if let template {
+            let unit = ((try? context.fetch(FetchDescriptor<UserProfile>()))?.first)?.unit ?? .kg
+            let finished = StatsService.finishedWorkouts(context)
             for item in template.sortedItems {
                 guard let ex = item.exercise else { continue }
+                let plan = LoadPlanner.plan(exercise: ex, repsMin: item.reps, repsMax: item.repsMax,
+                                            model: template.progression, rir: template.rir,
+                                            sessions: StatsService.sessions(for: ex, in: finished), unit: unit)
                 addExercise(ex, to: w, context: context, setCount: item.sets, reps: item.reps, fallbackWeightKg: item.weightKg,
-                            repsMax: item.repsMax, restSeconds: item.restSeconds)
+                            repsMax: item.repsMax, restSeconds: item.restSeconds,
+                            plannedWeightKg: plan?.weightKg, plannedReps: plan?.reps, planNote: plan?.note ?? "")
             }
         }
         try? context.save()
@@ -66,7 +72,8 @@ enum WorkoutService {
     /// Adds an exercise; sets are prefilled from the previous session of that exercise when available.
     static func addExercise(_ exercise: Exercise, to workout: Workout, context: ModelContext,
                             setCount: Int? = nil, reps: Int? = nil, fallbackWeightKg: Double = 0,
-                            repsMin: Int = 0, repsMax: Int = 0, restSeconds: Int = 0) {
+                            repsMin: Int = 0, repsMax: Int = 0, restSeconds: Int = 0,
+                            plannedWeightKg: Double? = nil, plannedReps: Int? = nil, planNote: String = "") {
         let history = StatsService.finishedWorkouts(context)
         let last = StatsService.sessions(for: exercise, in: history).last?.sets ?? []
         let count = setCount ?? (last.isEmpty ? 3 : min(last.count, 8))
@@ -76,9 +83,11 @@ enum WorkoutService {
         entry.repsMin = repsMin > 0 ? repsMin : (reps ?? 0)
         entry.repsMax = repsMax
         entry.restSeconds = restSeconds
+        entry.planNote = planNote
         for i in 0..<count {
             let ref: SetSnapshot? = last.isEmpty ? nil : last[min(i, last.count - 1)]
-            let s = WorkoutSet(order: i, weightKg: ref?.weightKg ?? fallbackWeightKg, reps: ref?.reps ?? reps ?? 10)
+            let s = WorkoutSet(order: i, weightKg: plannedWeightKg ?? ref?.weightKg ?? fallbackWeightKg,
+                             reps: plannedReps ?? ref?.reps ?? reps ?? 10)
             context.insert(s)
             s.workoutExercise = entry
         }

@@ -63,6 +63,12 @@ private struct ProfileForm: View {
             }
             .listRowBackground(Theme.card)
 
+            Section(tr("Tools")) {
+                NavigationLink { MyMaxesView() } label: { Label(tr("My one-rep maxes"), systemImage: "scalemass") }
+                NavigationLink { ScienceView() } label: { Label(tr("Scientific basis"), systemImage: "book") }
+            }
+            .listRowBackground(Theme.card)
+
             Section(tr("Training stats")) {
                 statRow(tr("Workouts"), "\(realWorkouts.count)")
                 statRow(tr("Total sets"), "\(realWorkouts.reduce(0) { $0 + $1.completedSets.count })")

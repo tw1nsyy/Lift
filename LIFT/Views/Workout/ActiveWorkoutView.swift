@@ -227,6 +227,7 @@ struct ExerciseCardView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.weightUnit) private var unit
     @Query private var profiles: [UserProfile]
+    @State private var showCalc = false
 
     private var targetText: String? {
         guard entry.repsMin > 0 else { return nil }
@@ -237,7 +238,7 @@ struct ExerciseCardView: View {
     }
 
     private var suggestion: ProgressionSuggestion? {
-        guard let ex = entry.exercise, let prev = previous else { return nil }
+        guard entry.planNote.isEmpty, let ex = entry.exercise, let prev = previous else { return nil }
         return StatsService.suggestion(for: ex, last: prev, stepKg: profiles.first?.progressionStepKg ?? 2.0, unit: unit,
                                        targetMin: entry.repsMin > 0 ? entry.repsMin : 8,
                                        targetMax: entry.repsMax > 0 ? entry.repsMax : 8)
@@ -276,6 +277,7 @@ struct ExerciseCardView: View {
                 Spacer()
                 Menu {
                     Button { addSet() } label: { Label(tr("Add set"), systemImage: "plus") }
+                    Button { showCalc = true } label: { Label(tr("Weight calculator"), systemImage: "function") }
                     Button {
                         withAnimation { WorkoutService.addWarmup(to: entry, context: context) }
                     } label: { Label(tr("Add warm-up set"), systemImage: "flame") }
@@ -298,6 +300,18 @@ struct ExerciseCardView: View {
                     .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary).lineLimit(2)
             } else {
                 Text(tr("No previous results yet")).font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
+            }
+
+            if !entry.planNote.isEmpty {
+                HStack(spacing: 10) {
+                    Image(systemName: "lightbulb.fill").foregroundStyle(Theme.accent)
+                    Text(entry.planNote)
+                        .font(.lift(12, .semibold)).foregroundStyle(Theme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .padding(10)
+                .background(Theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
 
             if let sg = suggestion, entry.sets.contains(where: { !$0.isCompleted && !$0.isWarmup }) {
@@ -356,6 +370,19 @@ struct ExerciseCardView: View {
             }
         }
         .card()
+        .sheet(isPresented: $showCalc) {
+            if let ex = entry.exercise {
+                NavigationStack {
+                    OneRMCalculatorView(exercise: ex, initialReps: entry.repsMin > 0 ? entry.repsMin : 8) { kg, reps in
+                        for s in entry.sets where !s.isCompleted && !s.isWarmup {
+                            s.weightKg = kg
+                            s.reps = reps
+                        }
+                    }
+                }
+                .environment(\.weightUnit, unit)
+            }
+        }
     }
 
     private func addSet() {

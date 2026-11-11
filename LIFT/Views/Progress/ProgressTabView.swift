@@ -123,6 +123,7 @@ struct ExerciseProgressContent: View {
 
     @Environment(\.weightUnit) private var unit
     @State private var selectedDate: Date?
+    @State private var showCalc = false
 
     private var summary: ExerciseSummary { ExerciseSummary(sessions: sessions) }
 
@@ -166,11 +167,17 @@ struct ExerciseProgressContent: View {
             metricPicker
             chartCard
             statsGrid
+            Button { showCalc = true } label: { Label(tr("Weight calculator"), systemImage: "function") }
+                .buttonStyle(PrimaryButtonStyle())
             recordsCard
             sessionsCard
             Text(tr("1RM is an estimate calculated with the Epley formula: weight × (1 + reps ÷ 30). It is not a verified max lift."))
                 .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .sheet(isPresented: $showCalc) {
+            NavigationStack { OneRMCalculatorView(exercise: exercise) }
+                .environment(\.weightUnit, unit)
         }
     }
 

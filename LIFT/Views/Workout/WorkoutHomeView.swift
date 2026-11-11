@@ -191,12 +191,25 @@ struct TemplateEditorView: View {
     @State private var showPicker = false
     @State private var saved = false
     @State private var snapshot: Snapshot?
+    @Query(filter: #Predicate<Workout> { $0.isFinished == true }, sort: \Workout.startedAt)
+    private var workouts: [Workout]
 
     private struct Snapshot {
         struct Item { let exercise: Exercise?; let sets: Int; let reps: Int; let weightKg: Double; let repsMax: Int; let restSeconds: Int }
         let name: String
         let mask: Int
+        let progression: String
+        let rir: Int
         let items: [Item]
+    }
+
+    private var uniqueExercises: [Exercise] {
+        var seen = Set<UUID>()
+        return template.sortedItems.compactMap { $0.exercise }.filter { seen.insert($0.id).inserted }
+    }
+
+    private func historyKg(_ ex: Exercise) -> Double {
+        StatsService.sessions(for: ex, in: workouts).map { $0.e1RMKg }.max() ?? 0
     }
 
     private var orderedWeekdays: [Int] {
@@ -235,6 +248,22 @@ struct TemplateEditorView: View {
                 }
                 .listRowBackground(Theme.card)
 
+                Section(tr("Load & progression")) {
+                    Picker(tr("Progression model"), selection: Binding(get: { template.progression }, set: { template.progression = $0 })) {
+                        ForEach(ProgressionModel.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    Text(template.progression.summary)
+                        .font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
+                    Stepper(value: $template.rir, in: 0...4) {
+                        Text(trf("Reps in reserve: %d", template.rir)).font(.lift(14, .medium))
+                    }
+                    Text(tr("Reps in reserve are how many more reps you could still do. 1–3 is a common range."))
+                        .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
+                    NavigationLink { ScienceView() } label: { Label(tr("Scientific basis"), systemImage: "book") }
+                }
+                .listRowBackground(Theme.card)
+
                 Section(tr("Exercises")) {
                     ForEach(template.sortedItems) { item in
                         VStack(alignment: .leading, spacing: 10) {
@@ -252,6 +281,7 @@ struct TemplateEditorView: View {
                                 Text(item.restSeconds == 0 ? tr("Rest: default") : trf("Rest: %@", countdownString(Double(item.restSeconds))))
                                     .font(.lift(14, .medium))
                             }
+                            planPreview(item)
                         }
                         .padding(.vertical, 4)
                     }
@@ -270,6 +300,16 @@ struct TemplateEditorView: View {
                     }
 
                     Button { showPicker = true } label: { Label(tr("Add Exercise"), systemImage: "plus") }
+                }
+                .listRowBackground(Theme.card)
+
+                Section(tr("My maxes")) {
+                    if uniqueExercises.isEmpty {
+                        Text(tr("No exercises in this program yet.")).font(.lift(13, .medium)).foregroundStyle(Theme.textSecondary)
+                    }
+                    ForEach(uniqueExercises) { ex in
+                        MaxRow(exercise: ex, historyKg: historyKg(ex))
+                    }
                 }
                 .listRowBackground(Theme.card)
             }
@@ -301,11 +341,30 @@ struct TemplateEditorView: View {
             .onAppear {
                 if snapshot == nil {
                     snapshot = Snapshot(name: template.name, mask: template.weekdayMask,
+                                        progression: template.progressionRaw, rir: template.rir,
                                         items: template.sortedItems.map {
                                             .init(exercise: $0.exercise, sets: $0.sets, reps: $0.reps, weightKg: $0.weightKg,
                                                     repsMax: $0.repsMax, restSeconds: $0.restSeconds)
                                         })
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func planPreview(_ item: TemplateItem) -> some View {
+        if let ex = item.exercise {
+            if let p = LoadPlanner.plan(exercise: ex, repsMin: item.reps, repsMax: item.repsMax,
+                                        model: template.progression, rir: template.rir,
+                                        sessions: StatsService.sessions(for: ex, in: workouts), unit: unit) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(trf("Today: %@ × %d", unit.format(p.weightKg), p.reps), systemImage: "scalemass.fill")
+                        .font(.lift(13, .bold)).foregroundStyle(Theme.accent)
+                    Text(p.note).font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
+                }
+            } else {
+                Text(tr("Set your 1RM below to see weights."))
+                    .font(.lift(11, .medium)).foregroundStyle(Theme.textSecondary)
             }
         }
     }
@@ -326,6 +385,8 @@ struct TemplateEditorView: View {
             template.items.removeAll()
             template.name = snap.name
             template.weekdayMask = snap.mask
+            template.progressionRaw = snap.progression
+            template.rir = snap.rir
             for (i, item) in snap.items.enumerated() {
                 guard let ex = item.exercise else { continue }
                 let restored = TemplateItem(order: i, exercise: ex, sets: item.sets, reps: item.reps, weightKg: item.weightKg)
