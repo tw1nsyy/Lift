@@ -189,4 +189,44 @@ final class LIFTTests: XCTestCase {
         let up = LoadPlanner.plan(exercise: ex, repsMin: 6, repsMax: 8, model: .acsm, rir: 2, sessions: two, unit: .kg)
         XCTAssertEqual(up?.weightKg, 105)                         // +5%
     }
+
+    // MARK: Leaderboard
+
+    func testInviteCodeRoundTrip() {
+        let code = LeaderboardConfig.inviteCode(url: "https://lift-default-rtdb.europe-west1.firebasedatabase.app", group: "lift-abc12345")
+        let decoded = LeaderboardConfig.decodeInvite(code)
+        XCTAssertEqual(decoded?.url, "https://lift-default-rtdb.europe-west1.firebasedatabase.app")
+        XCTAssertEqual(decoded?.group, "lift-abc12345")
+        XCTAssertNil(LeaderboardConfig.decodeInvite("not a code"))
+    }
+
+    func testNormalizedURLAndGroup() {
+        XCTAssertEqual(LeaderboardConfig.normalizedURL("abc-default-rtdb.firebaseio.com/"), "https://abc-default-rtdb.firebaseio.com")
+        XCTAssertEqual(LeaderboardConfig.normalizedURL("https://x.firebasedatabase.app/groups"), "https://x.firebasedatabase.app")
+        XCTAssertNil(LeaderboardConfig.normalizedURL("   "))
+        XCTAssertNil(LeaderboardConfig.normalizedURL("http://nodots"))
+        XCTAssertEqual(LeaderboardConfig.normalizedGroup("My Group!"), "mygroup")
+        XCTAssertNil(LeaderboardConfig.normalizedGroup("ab"))
+    }
+
+    func testMyStatsIgnoresDemoDataAndCountsThisWeek() throws {
+        let context = try makeContext()
+        let bench = Exercise(name: "Bench Press", muscle: .chest, equipment: .barbell)
+        context.insert(bench)
+        let real = addWorkout(context, exercise: bench, daysAgo: 0, sets: [(100, 5)])
+        let demo = addWorkout(context, exercise: bench, daysAgo: 0, sets: [(200, 5)])
+        demo.isDemo = true
+        try context.save()
+
+        let stats = LeaderboardConfig.myStats(workouts: [real, demo], name: "  Tim ")
+        XCTAssertEqual(stats.name, "Tim")
+        XCTAssertEqual(stats.workouts, 1)
+        XCTAssertEqual(stats.weekWorkouts, 1)
+        XCTAssertEqual(stats.totalVolumeKg, 500)
+        XCTAssertEqual(stats.lifts?["Bench Press"] ?? 0, 100 * (1 + 5.0 / 30), accuracy: 0.1)
+    }
+
+    func testStatsKeysAreFirebaseSafe() {
+        XCTAssertEqual(LeaderboardConfig.sanitizeKey("A.B$C#D[E]F/G"), "A B C D E F G")
+    }
 }

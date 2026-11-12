@@ -137,6 +137,11 @@ private struct ProfileForm: View {
             }
             .listRowBackground(Theme.card)
 
+            Section {
+                NavigationLink { LeaderboardView() } label: { Label(tr("Leaderboard"), systemImage: "trophy.fill") }
+            }
+            .listRowBackground(Theme.card)
+
             Section(tr("Data")) {
                 Button { export() } label: { Label(tr("Export workout history (CSV)"), systemImage: "square.and.arrow.up") }
                 if workouts.contains(where: { $0.isDemo }) {

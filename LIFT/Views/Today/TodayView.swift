@@ -29,6 +29,7 @@ struct TodayView: View {
                     if workouts.contains(where: { $0.isDemo }) { demoBanner }
                     statGrid
                     muscleVolumeCard
+                    leaderboardCard
                     calendarCard
                     lastWorkoutCard
                     recordsCard
@@ -149,6 +150,28 @@ struct TodayView: View {
             }
         }
         .card()
+    }
+
+    private var leaderboardCard: some View {
+        NavigationLink { LeaderboardView() } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "trophy.fill")
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.cardHigh, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tr("Leaderboard")).font(.lift(17, .bold))
+                    Text(tr("Compare with friends")).font(.lift(12, .medium)).foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .foregroundStyle(Theme.textPrimary)
+            .card()
+        }
+        .buttonStyle(.plain)
     }
 
     private var demoBanner: some View {

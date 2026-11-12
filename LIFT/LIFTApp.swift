@@ -6,6 +6,7 @@ struct LIFTApp: App {
     private let container: ModelContainer
     @State private var router = AppRouter()
     @State private var restTimer = RestTimerManager()
+    @State private var leaderboard = LeaderboardStore()
 
     init() {
         do {
@@ -23,6 +24,7 @@ struct LIFTApp: App {
                 .modelContainer(container)
                 .environment(router)
                 .environment(restTimer)
+                .environment(leaderboard)
         }
     }
 }

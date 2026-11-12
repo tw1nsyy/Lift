@@ -1,0 +1,43 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "groups": {
+      "$group": {
+        ".read": "$group.length >= 6 && $group.length <= 40",
+        "players": {
+          "$player": {
+            ".write": "$group.length >= 6 && $group.length <= 40 && $player.length >= 8 && $player.length <= 40",
+            ".validate": "newData.hasChildren(['name', 'updatedAt'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "workouts": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 100000"
+            },
+            "weekWorkouts": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000"
+            },
+            "weekVolumeKg": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+            },
+            "totalVolumeKg": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+            },
+            "lifts": {
+              "$lift": {
+                ".validate": "$lift.length <= 40 && newData.isNumber() && newData.val() >= 0 && newData.val() < 1000"
+              }
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

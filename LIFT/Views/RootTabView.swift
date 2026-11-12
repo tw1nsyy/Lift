@@ -20,6 +20,7 @@ struct RootTabView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppRouter.self) private var router
+    @Environment(LeaderboardStore.self) private var leaderboard
     @AppStorage(Lang.key) private var language: String = "ru"
     @Query private var profiles: [UserProfile]
     @Query(filter: #Predicate<Workout> { $0.isFinished == false }) private var activeWorkouts: [Workout]
@@ -67,9 +68,16 @@ struct RootTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: profiles.first?.didOnboard)
-        .task { SeedService.seedIfNeeded(context: context) }
+        .task {
+            SeedService.seedIfNeeded(context: context)
+            await leaderboard.sync(context: context)
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { try? context.save() }
+            if phase != .active {
+                try? context.save()
+            } else {
+                Task { await leaderboard.sync(context: context) }
+            }
         }
     }
 }

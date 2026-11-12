@@ -17,6 +17,7 @@ struct ActiveWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.weightUnit) private var unit
     @Environment(RestTimerManager.self) private var timer
+    @Environment(LeaderboardStore.self) private var leaderboard
     @Query private var profiles: [UserProfile]
     @Query(filter: #Predicate<Workout> { $0.isFinished == true }, sort: \Workout.startedAt)
     private var history: [Workout]
@@ -210,6 +211,7 @@ struct ActiveWorkoutView: View {
         let name = workout.name
         let start = workout.startedAt
         let records = WorkoutService.finish(workout, context: context)
+        Task { await leaderboard.sync(context: context) }
         Haptics.success()
         summary = WorkoutSummaryData(name: name, duration: Date().timeIntervalSince(start),
                                      volumeKg: volume, sets: totalSets, exercises: exCount, records: records)
