@@ -19,11 +19,22 @@ struct ExerciseLibraryView: View {
 
     private var isPicking: Bool { onPick != nil }
 
+    private func matchesSearch(_ ex: Exercise) -> Bool {
+        let q = search.trimmingCharacters(in: .whitespaces)
+        if q.isEmpty { return true }
+        // Names are stored in English and shown translated, so look in both,
+        // plus the muscle group and equipment names.
+        return ex.name.localizedStandardContains(q)
+            || tr(ex.name).localizedStandardContains(q)
+            || ex.muscle.title.localizedStandardContains(q)
+            || ex.equipment.title.localizedStandardContains(q)
+    }
+
     private var filtered: [Exercise] {
         exercises.filter { ex in
             (muscleFilter == nil || ex.muscle == muscleFilter)
             && (!favoritesOnly || ex.isFavorite)
-            && (search.isEmpty || ex.name.localizedCaseInsensitiveContains(search))
+            && matchesSearch(ex)
         }
     }
 
@@ -62,7 +73,7 @@ struct ExerciseLibraryView: View {
         .tabBarClearance(!isPicking)
         .navigationTitle(isPicking ? tr("Add Exercises") : tr("Exercise Library"))
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $search, prompt: tr("Search exercises"))
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: tr("Search exercises"))
         .toolbar {
             if isPicking {
                 ToolbarItem(placement: .cancellationAction) { Button(tr("Cancel")) { dismiss() } }
@@ -154,11 +165,6 @@ struct ExerciseLibraryView: View {
 
     private func label(_ ex: Exercise) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: ex.muscle.symbol)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 34, height: 34)
-                .background(Theme.cardHigh, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(tr(ex.name)).font(.lift(16, .semibold))
