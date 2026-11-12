@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
+
 jobs:
   build-ipa:
     runs-on: macos-15
@@ -58,6 +62,9 @@ jobs:
           path: build.log
 
   tests:
+    # Unit tests run only when started by hand (Actions -> iOS build -> Run workflow),
+    # so a normal push needs just one macOS runner.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-15
     continue-on-error: true
     steps:
