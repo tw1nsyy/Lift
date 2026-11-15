@@ -42,24 +42,24 @@ struct LeaderboardView: View {
     @AppStorage(LeaderboardConfig.urlKey) private var url = ""
     @AppStorage(LeaderboardConfig.groupKey) private var group = ""
 
-    @State private var selectedID = "weekWorkouts"
+    @State private var showAllLifts = false
     @State private var showSetup = false
     @State private var showInvite = false
 
     private var configured: Bool { !url.isEmpty && !group.isEmpty }
 
     private var categories: [LeaderboardCategory] { LeaderboardCategory.build(for: store.players) }
-    private var selected: LeaderboardCategory? {
-        categories.first { $0.id == selectedID } ?? categories.first
-    }
+    private var mainCategories: [LeaderboardCategory] { categories.filter { !$0.id.hasPrefix("lift:") } }
+    private var liftCategories: [LeaderboardCategory] { categories.filter { $0.id.hasPrefix("lift:") } }
+    private let liftPreviewCount = 8
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 if configured {
                     groupCard
-                    chips
-                    if let cat = selected { board(cat) }
+                    ForEach(mainCategories) { cat in board(cat) }
+                    liftsSection
                     if let message = store.message {
                         Text(message).font(.lift(13, .medium)).foregroundStyle(Theme.danger)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -125,23 +125,24 @@ struct LeaderboardView: View {
         .card(padding: 14)
     }
 
-    private var chips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(categories) { cat in
-                    let on = cat.id == selected?.id
-                    Button {
-                        Haptics.tap()
-                        withAnimation(.easeInOut(duration: 0.2)) { selectedID = cat.id }
-                    } label: {
-                        Text(cat.title)
-                            .font(.lift(13, .bold))
-                            .foregroundStyle(on ? Theme.background : Theme.textPrimary)
-                            .padding(.horizontal, 14).padding(.vertical, 9)
-                            .background(on ? Theme.textPrimary : Theme.card, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
+    @ViewBuilder
+    private var liftsSection: some View {
+        let lifts = liftCategories
+        if !lifts.isEmpty {
+            Text(tr("Estimated 1RM by exercise"))
+                .font(.lift(20, .bold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+            ForEach(showAllLifts ? lifts : Array(lifts.prefix(liftPreviewCount))) { cat in
+                board(cat)
+            }
+            if lifts.count > liftPreviewCount {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showAllLifts.toggle() }
+                } label: {
+                    Text(showAllLifts ? tr("Show fewer") : tr("Show all exercises")).frame(maxWidth: .infinity)
                 }
+                .buttonStyle(SoftButtonStyle())
             }
         }
     }
@@ -177,7 +178,7 @@ struct LeaderboardView: View {
         return VStack(alignment: .leading, spacing: 12) {
             Text(cat.title).font(.lift(18, .bold))
             if rows.isEmpty {
-                Text(tr("No one has shared results yet."))
+                Text(cat.id == "total" ? tr("Needs bench press, squat and deadlift results.") : tr("No one has shared results yet."))
                     .font(.lift(13, .medium)).foregroundStyle(Theme.textSecondary)
             } else {
                 ForEach(Array(rows.enumerated()), id: \.element.entry.id) { idx, row in
