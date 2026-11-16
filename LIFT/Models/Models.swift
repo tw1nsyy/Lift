@@ -100,6 +100,8 @@ final class UserProfile {
     /// Weight added when the app suggests a progression (kg).
     var progressionStepKg: Double = 2.0
     var seededUpperProgram: Bool = false
+    var seededSplit: Bool = false
+    var splitLegsV2: Bool = false
 
     init(name: String = "") {
         self.name = name
