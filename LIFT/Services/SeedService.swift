@@ -112,6 +112,10 @@ enum SeedService {
         .init(name: "Lying Leg Raise", muscle: .core, equipment: .bodyweight, technique: "Lie on your back with the hands under the hips. Raise straight legs to vertical and lower without touching the floor."),
         .init(name: "Bicycle Crunch", muscle: .core, equipment: .bodyweight, technique: "Lying on your back, bring the opposite elbow and knee together while extending the other leg, alternating sides."),
         .init(name: "Sit Ups", muscle: .core, equipment: .bodyweight, technique: "Lie on your back with the knees bent. Curl all the way up to sitting, then lower with control."),
+        // Added for the 8-day split (Push / Pull / Legs + Abs / Upper)
+        .init(name: "Cable Overhead Triceps Extension", muscle: .arms, equipment: .cable, technique: "Face away from a high cable with a rope. Keep the elbows pointing forward and extend the arms overhead, squeeze the triceps, and return under control."),
+        .init(name: "Hanging Knee Raise", muscle: .core, equipment: .bodyweight, technique: "Hang from a bar. Raise the knees toward the chest by curling the pelvis, without swinging, then lower slowly."),
+        .init(name: "Incline Machine Press", muscle: .chest, equipment: .machine, technique: "Set the seat so the handles are at upper-chest height. Press forward and up without locking the elbows and return slowly with the shoulder blades pinned back."),
     ]
 
     static func seedIfNeeded(context: ModelContext) {
@@ -133,79 +137,120 @@ enum SeedService {
 
         let exercises = (try? context.fetch(FetchDescriptor<Exercise>())) ?? []
 
+        // Demo workout history (removed after the first real workout). No ready-made programs are created here.
         if !profile.didSeedDemo {
-            insertDemoTemplates(exercises: exercises, context: context)
             insertDemoWorkouts(exercises: exercises, context: context)
             profile.didSeedDemo = true
             try? context.save()
             StatsService.rebuildRecords(context)
         }
 
-        if !profile.seededUpperProgram {
-            insertUpperProgram(exercises: exercises, context: context)
+        // One-time switch to the 8-day split: drop every ready-made program, add the four new ones.
+        if !profile.seededSplit {
+            removePrefilledPrograms(context: context)
+            insertSplitProgram(exercises: exercises, context: context)
+            profile.seededSplit = true
             profile.seededUpperProgram = true
+            profile.splitLegsV2 = true
+            try? context.save()
+        } else if !profile.splitLegsV2 {
+            updateLegDay(exercises: exercises, context: context)
+            profile.splitLegsV2 = true
             try? context.save()
         }
     }
 
-    // MARK: Upper A / Upper B program (name, sets, reps min, reps max, rest seconds)
+    // MARK: Ready-made programs
 
-    private static func insertUpperProgram(exercises: [Exercise], context: ModelContext) {
+    /// Deletes the programs that earlier versions of the app created by themselves.
+    /// Programs the user made are kept.
+    private static func removePrefilledPrograms(context: ModelContext) {
+        let oldNames: Set<String> = ["Upper A — Chest, Shoulders, Triceps", "Upper B — Back, Shoulders, Biceps"]
+        for t in (try? context.fetch(FetchDescriptor<WorkoutTemplate>())) ?? [] {
+            if t.isDemo || oldNames.contains(t.name) { context.delete(t) }
+        }
+        try? context.save()
+    }
+
+    private static let legDayName = "Day 5 — LEGS"
+    private static let legDayItems: [(String, Int, Int, Int, Int)] = [
+        ("Squat", 3, 8, 10, 180),
+        ("Romanian Deadlift", 2, 8, 12, 120),
+        ("Leg Press", 2, 10, 12, 180),
+        ("Leg Extension", 2, 12, 15, 90),
+        ("Leg Curl", 2, 10, 15, 90),
+        ("Calf Raises", 3, 12, 20, 90)
+    ]
+
+    /// Updates the leg day of installs that already have the first version (Legs + Abs).
+    private static func updateLegDay(exercises: [Exercise], context: ModelContext) {
+        func ex(_ n: String) -> Exercise? { exercises.first { $0.name == n } }
+        let all = (try? context.fetch(FetchDescriptor<WorkoutTemplate>())) ?? []
+        guard let t = all.first(where: { $0.name == "Day 5 — LEGS + ABS" }) else { return }
+        for item in t.items { context.delete(item) }
+        t.items.removeAll()
+        t.name = legDayName
+        var order = 0
+        for item in legDayItems {
+            guard let e = ex(item.0) else { continue }
+            let ti = TemplateItem(order: order, exercise: e, sets: item.1, reps: item.2)
+            ti.repsMax = item.3
+            ti.restSeconds = item.4
+            context.insert(ti)
+            ti.template = t
+            order += 1
+        }
+    }
+
+    /// 8-day cycle: day 1 Push, day 3 Pull, day 5 Legs, day 7 Upper (days 2, 4, 6, 8 are rest).
+    /// Items: (exercise, sets, reps min, reps max, rest seconds).
+    private static func insertSplitProgram(exercises: [Exercise], context: ModelContext) {
         func ex(_ n: String) -> Exercise? { exercises.first { $0.name == n } }
         let plans: [(String, [(String, Int, Int, Int, Int)])] = [
-            ("Upper A — Chest, Shoulders, Triceps", [
-                ("Bench Press", 3, 6, 8, 180),
-                ("Incline Dumbbell Press", 3, 8, 12, 120),
+            ("Day 1 — PUSH", [
+                ("Bench Press", 3, 6, 10, 180),
+                ("Incline Dumbbell Press", 3, 8, 12, 180),
                 ("Pec Deck Fly", 2, 12, 15, 90),
-                ("Shoulder Press", 3, 6, 10, 180),
-                ("Lateral Raises", 4, 12, 20, 90),
-                ("Reverse Pec Deck", 3, 12, 20, 90),
-                ("Triceps Pushdown", 3, 10, 15, 90),
-                ("Overhead Triceps Extension", 2, 10, 15, 90)]),
-            ("Upper B — Back, Shoulders, Biceps", [
+                ("Shoulder Press", 2, 8, 12, 180),
+                ("Lateral Raises", 3, 12, 20, 90),
+                ("Triceps Pushdown", 2, 10, 15, 90),
+                ("Cable Overhead Triceps Extension", 2, 10, 15, 90)]),
+            ("Day 3 — PULL", [
                 ("Lat Pulldown", 3, 8, 12, 120),
                 ("Chest Supported Row", 3, 8, 12, 120),
-                ("Seated Cable Row", 3, 8, 12, 120),
-                ("Shoulder Press", 3, 8, 10, 180),
-                ("Lateral Raises", 4, 12, 20, 90),
-                ("Reverse Pec Deck", 3, 12, 20, 90),
-                ("Barbell Curl", 3, 8, 12, 90),
+                ("Seated Cable Row", 2, 10, 12, 120),
+                ("Straight-Arm Pulldown", 2, 12, 15, 90),
+                ("Reverse Pec Deck", 2, 12, 20, 90),
+                ("Barbell Curl", 2, 8, 12, 90),
                 ("Incline Dumbbell Curl", 2, 10, 15, 90),
-                ("Reverse Curl", 2, 10, 15, 90)])
+                ("Hammer Curl", 2, 10, 15, 90)]),
+            (legDayName, legDayItems),
+            ("Day 7 — UPPER", [
+                ("Incline Machine Press", 2, 8, 12, 180),
+                ("Lat Pulldown", 2, 8, 12, 120),
+                ("Chest Supported Row", 2, 10, 12, 120),
+                ("Pec Deck Fly", 2, 12, 15, 90),
+                ("Lateral Raises", 2, 12, 20, 90),
+                ("Reverse Pec Deck", 2, 12, 20, 90),
+                ("Cable Curl", 2, 10, 15, 90),
+                ("Triceps Pushdown", 2, 10, 15, 90),
+                ("Cable Crunch", 2, 12, 15, 90)])
         ]
         for (name, items) in plans {
             let t = WorkoutTemplate(name: name)
+            // Reps first, then weight; 2-3 reps kept in reserve.
+            t.progressionRaw = ProgressionModel.double.rawValue
+            t.rir = 2
             context.insert(t)
-            for (i, item) in items.enumerated() {
+            var order = 0
+            for item in items {
                 guard let e = ex(item.0) else { continue }
-                let ti = TemplateItem(order: i, exercise: e, sets: item.1, reps: item.2)
+                let ti = TemplateItem(order: order, exercise: e, sets: item.1, reps: item.2)
                 ti.repsMax = item.3
                 ti.restSeconds = item.4
                 context.insert(ti)
                 ti.template = t
-            }
-        }
-    }
-
-    // MARK: Demo templates
-
-    private static func insertDemoTemplates(exercises: [Exercise], context: ModelContext) {
-        guard ((try? context.fetchCount(FetchDescriptor<WorkoutTemplate>())) ?? 0) == 0 else { return }
-        func ex(_ n: String) -> Exercise? { exercises.first { $0.name == n } }
-        let plans: [(String, [(String, Int, Int)])] = [
-            ("Push Day", [("Bench Press", 4, 8), ("Incline Bench Press", 3, 10), ("Shoulder Press", 3, 10), ("Lateral Raises", 3, 15), ("Triceps Pushdown", 3, 12)]),
-            ("Pull Day", [("Barbell Row", 4, 8), ("Lat Pulldown", 3, 10), ("Seated Cable Row", 3, 10), ("Face Pull", 3, 15), ("Barbell Curl", 3, 10)]),
-            ("Leg Day", [("Squat", 4, 6), ("Romanian Deadlift", 3, 8), ("Leg Press", 3, 12), ("Leg Curl", 3, 12), ("Calf Raises", 4, 15)]),
-            ("Full Body", [("Squat", 3, 8), ("Bench Press", 3, 8), ("Barbell Row", 3, 8), ("Shoulder Press", 3, 10), ("Hammer Curl", 3, 12)])
-        ]
-        for (name, items) in plans {
-            let t = WorkoutTemplate(name: name, isDemo: true)
-            context.insert(t)
-            for (i, item) in items.enumerated() {
-                guard let e = ex(item.0) else { continue }
-                let ti = TemplateItem(order: i, exercise: e, sets: item.1, reps: item.2)
-                context.insert(ti)
-                ti.template = t
+                order += 1
             }
         }
     }
